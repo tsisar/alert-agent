@@ -35,5 +35,11 @@ func Open(driver, dsn string) (*gorm.DB, error) {
 		return nil, fmt.Errorf("auto-migrate: %w", err)
 	}
 
+	// Scenarios are now hard-deleted; purge any rows soft-deleted by earlier
+	// versions so their names stop blocking recreation via the unique index.
+	if err := db.Unscoped().Where("deleted_at IS NOT NULL").Delete(&Scenario{}).Error; err != nil {
+		return nil, fmt.Errorf("purge soft-deleted scenarios: %w", err)
+	}
+
 	return db, nil
 }

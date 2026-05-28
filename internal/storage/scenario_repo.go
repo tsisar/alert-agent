@@ -103,7 +103,10 @@ func (r *scenarioRepo) Update(s *Scenario) error {
 }
 
 func (r *scenarioRepo) Delete(id uint) error {
-	if err := r.db.Delete(&Scenario{}, id).Error; err != nil {
+	// Hard delete: scenarios have a unique index on name and no restore
+	// feature, so a soft-deleted row would only block recreating a scenario
+	// with the same name.
+	if err := r.db.Unscoped().Delete(&Scenario{}, id).Error; err != nil {
 		return err
 	}
 	r.Invalidate()
