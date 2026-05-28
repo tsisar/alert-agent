@@ -17,6 +17,7 @@ type mockProvider struct {
 	responses []*llm.ChatResponse
 	calls     int
 	requests  []*llm.ChatRequest
+	afterCall func(calls int) // optional hook invoked after each response is selected
 }
 
 func (m *mockProvider) ChatCompletion(_ context.Context, req *llm.ChatRequest) (*llm.ChatResponse, error) {
@@ -26,6 +27,9 @@ func (m *mockProvider) ChatCompletion(_ context.Context, req *llm.ChatRequest) (
 	}
 	resp := m.responses[m.calls]
 	m.calls++
+	if m.afterCall != nil {
+		m.afterCall(m.calls)
+	}
 	return resp, nil
 }
 
@@ -320,6 +324,47 @@ func TestRun_CollectsImages(t *testing.T) {
 	}
 	if len(result.Images) != 1 {
 		t.Fatalf("expected 1 image, got %d", len(result.Images))
+	}
+	if string(result.Images[0]) != "fake-png-data" {
+		t.Fatalf("unexpected image data: %q", result.Images[0])
+	}
+}
+
+func TestRun_TimeoutKeepsImages(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	provider := &mockProvider{
+		responses: []*llm.ChatResponse{
+			{
+				FinishReason: llm.FinishReasonToolCall,
+				ToolCalls: []llm.ToolCall{
+					{ID: "call_1", Name: "get_panel_image", Arguments: `{}`},
+				},
+			},
+			{
+				Content:      "Timed-out report with screenshot. Severity: WARNING",
+				FinishReason: llm.FinishReasonStop,
+			},
+		},
+	}
+	// Cancel the context once the first (tool-call) response has been served,
+	// forcing the run into timeoutFinish before the second iteration.
+	provider.afterCall = func(calls int) {
+		if calls == 1 {
+			cancel()
+		}
+	}
+	executor := &mockExecutor{
+		tools:      testTools,
+		toolImages: map[string][]byte{"get_panel_image": []byte("fake-png-data")},
+	}
+
+	ag := New(provider, executor, testLLMConfig(), testPrompts())
+	result, err := ag.Run(ctx, testPayload(), testScenario())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(result.Images) != 1 {
+		t.Fatalf("expected 1 image to survive timeout, got %d", len(result.Images))
 	}
 	if string(result.Images[0]) != "fake-png-data" {
 		t.Fatalf("unexpected image data: %q", result.Images[0])
