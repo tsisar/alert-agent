@@ -26,42 +26,42 @@ We use a release branch flow.
 
 | Branch    | Purpose                                                           |
 |-----------|-------------------------------------------------------------------|
-| `master`  | Active development. All feature branches merge here.              |
+| `main`  | Active development. All feature branches merge here.              |
 | `release` | Stable code, ready to ship. Tags are created only on this branch. |
 
 ### Temporary branches
 
 | Prefix      | Purpose                            | Branched from | Merged into          |
 |-------------|------------------------------------|---------------|----------------------|
-| `feature/*` | New functionality                  | `master`      | `master`             |
-| `fix/*`     | Bug fix targeting the next release | `master`      | `master`             |
-| `hotfix/*`  | Urgent production fix              | `release`     | `release` + `master` |
+| `feature/*` | New functionality                  | `main`      | `main`             |
+| `fix/*`     | Bug fix targeting the next release | `main`      | `main`             |
+| `hotfix/*`  | Urgent production fix              | `release`     | `release` + `main` |
 
 ### Flow diagram
 
 ```
-feature/* ──► master ──(stabilization)──► release ──(tag vX.Y.Z)──► production
+feature/* ──► main ──(stabilization)──► release ──(tag vX.Y.Z)──► production
                                               ▲
 hotfix/*  ────────────────────────────────────┘
               │
-              └──► master (back-merge)
+              └──► main (back-merge)
 ```
 
 ## 3. Preparing a release
 
-### 3.1. Get `master` ready
+### 3.1. Get `main` ready
 
-1. All planned MRs are merged into `master`.
-2. CI on `master` is green.
+1. All planned MRs are merged into `main`.
+2. CI on `main` is green.
 3. The `## [Unreleased]` section in `CHANGELOG.md` reflects everything in this release.
 
 ### 3.2. Stabilization period
 
-Open a release MR `master` → `release`:
+Open a release MR `main` → `release`:
 
 - title: `release: vX.Y.Z`
 - no new features during the stabilization window — only bug fixes
-- bug fixes land on `master` first and are cherry-picked into the release MR (or made directly off the release
+- bug fixes land on `main` first and are cherry-picked into the release MR (or made directly off the release
   branch when needed)
 
 ### 3.3. Version bump
@@ -88,12 +88,12 @@ Commit message format: `chore(release): vX.Y.Z`
 
 3. The tag pipeline publishes the Docker image and creates a GitLab Release automatically.
 
-### 3.5. Back-merge into `master`
+### 3.5. Back-merge into `main`
 
-After tagging, merge `release` back into `master` so the CHANGELOG bump lands in active development:
+After tagging, merge `release` back into `main` so the CHANGELOG bump lands in active development:
 
 ```bash
-git checkout master
+git checkout main
 git merge --no-ff release
 git push
 ```
@@ -102,12 +102,12 @@ git push
 
 When a critical bug is found in production:
 
-1. Create `hotfix/<short-desc>` off `release` (not off `master`!).
+1. Create `hotfix/<short-desc>` off `release` (not off `main`!).
 2. Apply the fix and update `CHANGELOG.md`.
 3. Bump the PATCH version: `vX.Y.Z` → `vX.Y.(Z+1)`.
 4. Open an MR into `release`.
 5. After merge, tag the new patch release.
-6. **Always** back-merge `release` → `master`, otherwise the fix will be lost in the next release.
+6. **Always** back-merge `release` → `main`, otherwise the fix will be lost in the next release.
 
 ## 5. CHANGELOG
 
@@ -148,7 +148,7 @@ The CI pipeline produces different image tags depending on the trigger:
 
 | Trigger           | Image tag(s)          | Purpose                                     |
 |-------------------|-----------------------|---------------------------------------------|
-| Push to `master`  | `:<short-sha>`        | Development build (pushed; staging/testing) |
+| Push to `main`  | `:<short-sha>`        | Development build (pushed; staging/testing) |
 | Push to `release` | `:rc-<short-sha>`     | Release candidate (pushed)                  |
 | Tag `vX.Y.Z`      | `:vX.Y.Z` + `:latest` | Stable production release                   |
 | Tag `vX.Y.Z-rc*`  | `:vX.Y.Z-rc.N`        | Pre-release (does **not** touch `:latest`)  |
@@ -156,7 +156,7 @@ The CI pipeline produces different image tags depending on the trigger:
 Rules:
 
 - The `vX.Y.Z` tag is immutable — it always points to the same commit and the same binary.
-- `:latest` is updated **only** by stable tags. It is not touched by pushes to `master` or `release`.
+- `:latest` is updated **only** by stable tags. It is not touched by pushes to `main` or `release`.
 - The version is baked into the binary at build time via `-ldflags` (`internal/version` package). At runtime
   it is exposed by `alert-agent version`.
 
@@ -168,9 +168,9 @@ Rules:
 
 ## 9. Release checklist
 
-- [ ] CI on `master` is green
+- [ ] CI on `main` is green
 - [ ] `CHANGELOG.md` `[Unreleased]` is populated and meaningful
-- [ ] Release MR `master` → `release` is open
+- [ ] Release MR `main` → `release` is open
 - [ ] `[Unreleased]` renamed to `[X.Y.Z] - YYYY-MM-DD`, compare link added
 - [ ] Release MR CI is green
 - [ ] Merged into `release`
@@ -179,16 +179,16 @@ Rules:
 - [ ] Docker image `:vX.Y.Z` (and `:latest` for stable tags) is published
 - [ ] Deployed to staging
 - [ ] Deployed to production
-- [ ] `release` back-merged into `master`
+- [ ] `release` back-merged into `main`
 
 ## 10. Anti-patterns (don't do this)
 
-- ❌ Tag directly off `master`
+- ❌ Tag directly off `main`
 - ❌ Overwrite an existing tag (`git tag -f`)
 - ❌ Force-push to `release`
 - ❌ Mix new features and fixes in a hotfix release
 - ❌ Release without updating the CHANGELOG
-- ❌ Forget to back-merge `release` → `master` after a hotfix
+- ❌ Forget to back-merge `release` → `main` after a hotfix
 
 ---
 
