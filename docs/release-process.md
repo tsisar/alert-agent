@@ -26,15 +26,15 @@ We use a release branch flow.
 
 | Branch    | Purpose                                                           |
 |-----------|-------------------------------------------------------------------|
-| `main`  | Active development. All feature branches merge here.              |
+| `main`    | Active development. All feature branches merge here.              |
 | `release` | Stable code, ready to ship. Tags are created only on this branch. |
 
 ### Temporary branches
 
-| Prefix      | Purpose                            | Branched from | Merged into          |
-|-------------|------------------------------------|---------------|----------------------|
-| `feature/*` | New functionality                  | `main`      | `main`             |
-| `fix/*`     | Bug fix targeting the next release | `main`      | `main`             |
+| Prefix      | Purpose                            | Branched from | Merged into        |
+|-------------|------------------------------------|---------------|--------------------|
+| `feature/*` | New functionality                  | `main`        | `main`             |
+| `fix/*`     | Bug fix targeting the next release | `main`        | `main`             |
 | `hotfix/*`  | Urgent production fix              | `release`     | `release` + `main` |
 
 ### Flow diagram
@@ -148,7 +148,7 @@ The CI pipeline produces different image tags depending on the trigger:
 
 | Trigger           | Image tag(s)          | Purpose                                     |
 |-------------------|-----------------------|---------------------------------------------|
-| Push to `main`  | `:<short-sha>`        | Development build (pushed; staging/testing) |
+| Push to `main`    | `:<short-sha>`        | Development build (pushed; staging/testing) |
 | Push to `release` | `:rc-<short-sha>`     | Release candidate (pushed)                  |
 | Tag `vX.Y.Z`      | `:vX.Y.Z` + `:latest` | Stable production release                   |
 | Tag `vX.Y.Z-rc*`  | `:vX.Y.Z-rc.N`        | Pre-release (does **not** touch `:latest`)  |
