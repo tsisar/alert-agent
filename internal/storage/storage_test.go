@@ -147,6 +147,37 @@ func TestScenarioRepo_CRUD(t *testing.T) {
 	}
 }
 
+func TestScenarioRepo_RecreateAfterDelete(t *testing.T) {
+	db := testDB(t)
+	repo := NewScenarioRepository(db)
+
+	s := &Scenario{Name: "dup", Prompt: "test", Timeout: "1m", Priority: "normal"}
+	if err := repo.Create(s); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+
+	list, err := repo.List()
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	if err := repo.Delete(list[0].ID); err != nil {
+		t.Fatalf("delete: %v", err)
+	}
+
+	// Recreating with the same name must not violate the unique index.
+	if err := repo.Create(&Scenario{Name: "dup", Prompt: "test2", Timeout: "1m", Priority: "normal"}); err != nil {
+		t.Fatalf("recreate after delete: %v", err)
+	}
+
+	list, err = repo.List()
+	if err != nil {
+		t.Fatalf("list after recreate: %v", err)
+	}
+	if len(list) != 1 || list[0].Name != "dup" || list[0].Prompt != "test2" {
+		t.Fatalf("expected 1 scenario 'dup' with prompt 'test2', got %v", list)
+	}
+}
+
 func TestScenarioRepo_CacheInvalidation(t *testing.T) {
 	db := testDB(t)
 	repo := NewScenarioRepository(db)
