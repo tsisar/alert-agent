@@ -2,7 +2,7 @@ name: Build image
 
 on:
   push:
-    branches: [master, release]
+    branches: [main, release]
     tags: ["v*"]
     paths:
       - "cmd/**"
@@ -47,9 +47,9 @@ jobs:
                 TAGS="${REGISTRY}/${IMAGE}:${VERSION},${REGISTRY}/${IMAGE}:${SHORT},${REGISTRY}/${IMAGE}:latest"
                 ;;
             esac
-          elif [ "$GITHUB_REF_NAME" = "master" ]; then
+          elif [ "$GITHUB_REF_NAME" = "main" ]; then
             VERSION="${SHORT}"
-            TAGS="${REGISTRY}/${IMAGE}:${SHORT},${REGISTRY}/${IMAGE}:master"
+            TAGS="${REGISTRY}/${IMAGE}:${SHORT},${REGISTRY}/${IMAGE}:main"
           elif [ "$GITHUB_REF_NAME" = "release" ]; then
             VERSION="rc-${SHORT}"
             TAGS="${REGISTRY}/${IMAGE}:rc-${SHORT},${REGISTRY}/${IMAGE}:release"
