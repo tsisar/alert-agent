@@ -1,0 +1,673 @@
+package templates
+
+import (
+	"fmt"
+	"strings"
+
+	"github.com/tsisar/alert-agent/internal/storage"
+)
+
+func priorityBadgeClass(p string) string {
+	switch p {
+	case "high":
+		return "badge badge-high"
+	case "critical":
+		return "badge badge-critical"
+	default:
+		return "badge badge-normal"
+	}
+}
+
+func priorityKey(p string) string {
+	switch p {
+	case "high", "critical":
+		return p
+	default:
+		return "normal"
+	}
+}
+
+func priorityLabel(p string) string {
+	switch p {
+	case "high":
+		return "High"
+	case "critical":
+		return "Critical"
+	default:
+		return "Normal"
+	}
+}
+
+func countByPriority(scenarios []storage.Scenario, p string) int {
+	n := 0
+	for _, s := range scenarios {
+		if priorityKey(s.Priority) == p {
+			n++
+		}
+	}
+	return n
+}
+
+func countCatchAll(scenarios []storage.Scenario) int {
+	n := 0
+	for _, s := range scenarios {
+		if len(s.Match) == 0 {
+			n++
+		}
+	}
+	return n
+}
+
+func truncatePrompt(s string, max int) string {
+	s = strings.TrimSpace(s)
+	if len(s) <= max {
+		return s
+	}
+	return s[:max] + "..."
+}
+
+templ ScenariosPage(scenarios []storage.Scenario) {
+	@Layout("Scenarios", "scenarios") {
+		@PageHeader("Scenarios", "Scenarios define how alerts are matched, investigated, and reported.") {
+			<a role="button" class="outline secondary" onclick="document.getElementById('import-file').click()">Import YAML</a>
+			<a href="/scenarios/export.yaml" role="button" class="outline secondary" download="scenarios.yaml">Export YAML</a>
+			<a href="/scenarios/new" role="button" class="btn-highlight">+ New Scenario</a>
+			<form id="import-form" hx-post="/scenarios/import" hx-target="body" hx-push-url="/scenarios" hx-encoding="multipart/form-data" style="display:none">
+				<input type="file" id="import-file" name="file" accept=".yaml,.yml" onchange="if(this.files.length){if(confirm('Import scenarios from '+this.files[0].name+'? Existing scenarios with matching names will be updated.')){htmx.trigger(this.closest('form'),'submit')}this.value=''}"/>
+			</form>
+		}
+		<div class="scenario-stats">
+			<div class="stat">
+				<span class="label">Configured</span>
+				<span class="value">{ fmt.Sprint(len(scenarios)) } <small>rules</small></span>
+			</div>
+			<div class="stat stat--critical">
+				<span class="label">Critical</span>
+				<span class="value">{ fmt.Sprint(countByPriority(scenarios, "critical")) }</span>
+			</div>
+			<div class="stat stat--high">
+				<span class="label">High</span>
+				<span class="value">{ fmt.Sprint(countByPriority(scenarios, "high")) }</span>
+			</div>
+			<div class="stat">
+				<span class="label">Catch-all</span>
+				<span class="value">{ fmt.Sprint(countCatchAll(scenarios)) }</span>
+			</div>
+		</div>
+		@SectionCard("Scenario Catalog", "Review alert routing rules and keep execution order predictable.") {
+			<div id="scenario-list">
+				@ScenarioList(scenarios)
+			</div>
+		}
+	}
+}
+
+templ ScenarioList(scenarios []storage.Scenario) {
+	if len(scenarios) == 0 {
+		<div class="empty-state">
+			@emptyIcon()
+			<h3>No scenarios yet</h3>
+			<p>Scenarios determine how incoming alerts are matched to investigation workflows.</p>
+			<a href="/scenarios/new" role="button">Create your first scenario</a>
+		</div>
+	} else {
+		<div class="scenario-grid">
+			for _, s := range scenarios {
+				@ScenarioCard(s)
+			}
+		</div>
+	}
+}
+
+templ ScenarioCard(s storage.Scenario) {
+	<div class="scenario-card" id={ fmt.Sprintf("scenario-%d", s.ID) } data-priority={ priorityKey(s.Priority) }>
+		<div class="scenario-card-header">
+			<div class="scenario-card-heading">
+				<h4 class="scenario-card-title">
+					{ s.Name }
+					<span class="scenario-card-order">#{ fmt.Sprint(s.OrderIndex) }</span>
+				</h4>
+				<p class="scenario-card-subtitle">Investigation and notification rule</p>
+			</div>
+			<span class={ priorityBadgeClass(s.Priority) }>{ priorityLabel(s.Priority) }</span>
+		</div>
+		<div class="scenario-card-meta">
+			if len(s.Match) == 0 {
+				<span class="tag tag-catch-all">catch-all</span>
+			} else {
+				for k, v := range s.Match {
+					<span class="tag tag-match">{ k }={ v }</span>
+				}
+			}
+			<span class="tag tag-timeout">{ s.Timeout }</span>
+			if s.SendImages {
+				<span class="tag tag-images">images</span>
+			}
+			if s.ChannelTelegram != "" {
+				<span class="tag tag-channel">tg: { s.ChannelTelegram }</span>
+			}
+			if s.ChannelSlack != "" {
+				<span class="tag tag-channel">slack: { s.ChannelSlack }</span>
+			}
+		</div>
+		if s.Prompt != "" {
+			<div class="scenario-card-prompt">{ truncatePrompt(s.Prompt, 200) }</div>
+		}
+		<div class="scenario-card-actions">
+			<a
+				href={ templ.SafeURL(fmt.Sprintf("/scenarios/%d/edit", s.ID)) }
+				role="button"
+				class="btn-highlight"
+			>
+				Edit
+			</a>
+			<button
+				hx-delete={ fmt.Sprintf("/scenarios/%d", s.ID) }
+				hx-target={ fmt.Sprintf("#scenario-%d", s.ID) }
+				hx-swap="outerHTML"
+				hx-confirm={ fmt.Sprintf("Delete scenario \"%s\"?", s.Name) }
+				class="outline secondary"
+			>
+				Delete
+			</button>
+		</div>
+	</div>
+}
+
+templ ScenarioFormPage(s *storage.Scenario, isEdit bool) {
+	@Layout(formTitle(isEdit), "scenarios") {
+		if isEdit {
+			@PageHeader("Edit Scenario", "Update matching and investigation behavior for this scenario.") {
+				<a href="/scenarios" role="button" class="outline secondary">Back to Scenarios</a>
+			}
+		} else {
+			@PageHeader("New Scenario", "Create a new rule for alert matching, investigation, and routing.") {
+				<a href="/scenarios" role="button" class="outline secondary">Back to Scenarios</a>
+			}
+		}
+		@SectionCard("Scenario Details", "Fields below control matching, investigation and notification channels.") {
+			@ScenarioForm(s, isEdit)
+		}
+	}
+}
+
+func formTitle(isEdit bool) string {
+	if isEdit {
+		return "Edit Scenario"
+	}
+	return "New Scenario"
+}
+
+templ ScenarioForm(s *storage.Scenario, isEdit bool) {
+	<form
+		if isEdit {
+			hx-put={ fmt.Sprintf("/scenarios/%d", s.ID) }
+		} else {
+			hx-post="/scenarios"
+		}
+		hx-target="body"
+		hx-push-url="/scenarios"
+		class="scenario-form"
+	>
+		<div class="form-section">
+			<div class="form-section-head">
+				<span class="form-section-num">1</span>
+				<h3 class="form-section-title">General</h3>
+				<span class="form-section-desc">Name, order, timeout and priority</span>
+			</div>
+			<div class="grid">
+				<label>
+					Name
+					<input type="text" name="name" value={ s.Name } required/>
+				</label>
+				<label>
+					Order Index
+					<input type="number" name="order_index" value={ fmt.Sprint(s.OrderIndex) }/>
+				</label>
+			</div>
+			<div class="grid">
+				<label>
+					Timeout
+					<input type="text" name="timeout" value={ s.Timeout } placeholder="2m"/>
+				</label>
+				<div class="field">
+					<span class="field-label">Priority</span>
+					<div class="segment-control" role="radiogroup" aria-label="Priority">
+						<label class="segment" data-priority="normal">
+							<input type="radio" name="priority" value="normal" checked?={ s.Priority == "normal" || s.Priority == "" }/>
+							<span>Normal</span>
+						</label>
+						<label class="segment" data-priority="high">
+							<input type="radio" name="priority" value="high" checked?={ s.Priority == "high" }/>
+							<span>High</span>
+						</label>
+						<label class="segment" data-priority="critical">
+							<input type="radio" name="priority" value="critical" checked?={ s.Priority == "critical" }/>
+							<span>Critical</span>
+						</label>
+					</div>
+				</div>
+			</div>
+			<label class="toggle">
+				<input type="checkbox" name="send_images" checked?={ s.SendImages }/>
+				<span>Send images with investigation report</span>
+			</label>
+		</div>
+		<div class="form-section">
+			<div class="form-section-head">
+				<span class="form-section-num">2</span>
+				<h3 class="form-section-title">Matching</h3>
+				<span class="form-section-desc">Which alerts this scenario handles</span>
+			</div>
+			<label>
+				Match Labels
+				<textarea id="match-labels" name="match" rows="1" class="auto-resize" placeholder="alertname=HighCPU&#10;severity=critical">{ formatMatch(s.Match) }</textarea>
+			</label>
+			<div class="form-help-row">
+				<p class="form-help">One key=value pair per line. Leave empty for a catch-all scenario.</p>
+				<button type="button" class="btn-import" onclick="openGrafanaImport()">Import from Grafana</button>
+			</div>
+			@grafanaImportModal()
+		</div>
+		<div class="form-section">
+			<div class="form-section-head">
+				<span class="form-section-num">3</span>
+				<h3 class="form-section-title">Investigation</h3>
+				<span class="form-section-desc">LLM prompt and allowed tools</span>
+			</div>
+			<label>
+				Prompt
+				<textarea name="prompt" rows="8" required>{ s.Prompt }</textarea>
+			</label>
+			<p class="form-help">Instructions for the LLM on how to investigate alerts matched by this scenario.</p>
+			<label>
+				Allowed Tools
+				<input type="text" id="allowed-tools" name="tools" value={ strings.Join([]string(s.Tools), ", ") } placeholder="search_dashboards, get_datasource_by_uid"/>
+			</label>
+			<div class="form-help-row">
+				<p class="form-help">Comma-separated list of MCP tool names. Leave empty to allow all available tools.</p>
+				<button type="button" class="btn-import" onclick="openToolPicker()">Browse Tools</button>
+			</div>
+			@toolPickerModal()
+		</div>
+		<div class="form-section">
+			<div class="form-section-head">
+				<span class="form-section-num">4</span>
+				<h3 class="form-section-title">Notification Channels</h3>
+				<span class="form-section-desc">Override default routing</span>
+			</div>
+			<div class="grid">
+				<label>
+					Telegram Channel
+					<input type="text" name="channel_telegram" value={ s.ChannelTelegram } placeholder="-100123456789"/>
+				</label>
+				<label>
+					Slack Channel
+					<input type="text" name="channel_slack" value={ s.ChannelSlack } placeholder="#alerts"/>
+				</label>
+			</div>
+			<p class="form-help">Override the default notification channels for this scenario. Leave empty to use defaults.</p>
+		</div>
+		<div class="form-actions">
+			<button type="submit" class="btn-highlight">
+				if isEdit {
+					Update Scenario
+				} else {
+					Create Scenario
+				}
+			</button>
+			<a href="/scenarios" role="button" class="outline secondary">Cancel</a>
+		</div>
+	</form>
+}
+
+func formatMatch(m storage.JSONMap) string {
+	if len(m) == 0 {
+		return ""
+	}
+	lines := make([]string, 0, len(m))
+	for k, v := range m {
+		lines = append(lines, k+"="+v)
+	}
+	return strings.Join(lines, "\n")
+}
+
+templ grafanaImportModal() {
+	<dialog id="grafana-import-modal">
+		<article class="import-modal-content">
+			<header>
+				<div class="import-modal-title">
+					@grafanaIcon()
+					<h3>Import from Grafana Alerting</h3>
+				</div>
+				<button type="button" class="close-modal" onclick="closeGrafanaImport()" aria-label="Close">&times;</button>
+			</header>
+			<div class="import-modal-search">
+				<input type="text" id="grafana-search" placeholder="Search by name, label, or group..." oninput="filterAlerts()" autocomplete="off"/>
+			</div>
+			<div id="grafana-alert-list" class="import-alert-list">
+				<div class="import-loading">
+					<div class="import-spinner"></div>
+					Loading alert rules...
+				</div>
+			</div>
+			<footer>
+				<span id="grafana-alert-count" class="import-count"></span>
+				<button type="button" class="outline secondary" onclick="closeGrafanaImport()">Cancel</button>
+			</footer>
+		</article>
+	</dialog>
+	<script>
+		var _grafanaAlerts = [];
+
+		function openGrafanaImport() {
+			var modal = document.getElementById('grafana-import-modal');
+			modal.showModal();
+			document.getElementById('grafana-search').value = '';
+			document.getElementById('grafana-alert-count').textContent = '';
+			document.getElementById('grafana-alert-list').innerHTML =
+				'<div class="import-loading"><div class="import-spinner"></div>Loading alert rules...</div>';
+			fetch('/api/grafana/alerts')
+				.then(function(r) {
+					if (!r.ok) throw new Error(r.statusText);
+					return r.json();
+				})
+				.then(function(alerts) {
+					_grafanaAlerts = alerts || [];
+					renderAlerts(_grafanaAlerts);
+					updateCount(_grafanaAlerts.length, _grafanaAlerts.length);
+				})
+				.catch(function(err) {
+					document.getElementById('grafana-alert-list').innerHTML =
+						'<div class="import-empty"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg><p>Failed to load alerts from Grafana</p></div>';
+				});
+		}
+
+		function closeGrafanaImport() {
+			document.getElementById('grafana-import-modal').close();
+		}
+
+		function updateCount(shown, total) {
+			var el = document.getElementById('grafana-alert-count');
+			if (shown === total) {
+				el.textContent = total + ' alert rule' + (total !== 1 ? 's' : '');
+			} else {
+				el.textContent = shown + ' of ' + total + ' rules';
+			}
+		}
+
+		function filterAlerts() {
+			var q = document.getElementById('grafana-search').value.toLowerCase();
+			var filtered = _grafanaAlerts.filter(function(a) {
+				if (a.title.toLowerCase().indexOf(q) >= 0) return true;
+				if ((a.rule_group || '').toLowerCase().indexOf(q) >= 0) return true;
+				if ((a.folder_uid || '').toLowerCase().indexOf(q) >= 0) return true;
+				var labels = a.labels || {};
+				return Object.keys(labels).some(function(k) {
+					return (k + '=' + labels[k]).toLowerCase().indexOf(q) >= 0;
+				});
+			});
+			renderAlerts(filtered);
+			updateCount(filtered.length, _grafanaAlerts.length);
+		}
+
+		function renderAlerts(alerts) {
+			var container = document.getElementById('grafana-alert-list');
+			if (alerts.length === 0) {
+				container.innerHTML =
+					'<div class="import-empty"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/></svg><p>No matching alert rules</p></div>';
+				return;
+			}
+
+			// Group by rule_group
+			var groups = {};
+			var groupOrder = [];
+			for (var i = 0; i < alerts.length; i++) {
+				var g = alerts[i].rule_group || 'Ungrouped';
+				if (!groups[g]) {
+					groups[g] = [];
+					groupOrder.push(g);
+				}
+				groups[g].push(alerts[i]);
+			}
+
+			var html = '';
+			for (var gi = 0; gi < groupOrder.length; gi++) {
+				var groupName = groupOrder[gi];
+				var items = groups[groupName];
+				html += '<div class="import-group">';
+				html += '<div class="import-group-header">' + escapeHtml(groupName) + '<span class="import-group-count">' + items.length + '</span></div>';
+				for (var j = 0; j < items.length; j++) {
+					html += renderAlertItem(items[j]);
+				}
+				html += '</div>';
+			}
+			container.innerHTML = html;
+		}
+
+		function renderAlertItem(a) {
+			var labels = a.labels || {};
+			var severity = labels.severity || '';
+			var sevClass = severity === 'critical' ? 'tag-sev-critical' : (severity === 'warning' ? 'tag-sev-warning' : 'tag-sev-info');
+			var stateClass = a.state === 'firing' ? 'tag-alert-firing' : (a.state === 'pending' ? 'tag-alert-pending' : 'tag-alert-normal');
+
+			var html = '<div class="import-alert-item" onclick=\'selectAlert(' + JSON.stringify(JSON.stringify(a)) + ')\'>';
+
+			// Row 1: title + state
+			html += '<div class="import-alert-header">';
+			html += '<span class="import-alert-title">' + escapeHtml(a.title) + '</span>';
+			html += '<span class="tag ' + stateClass + '">' + escapeHtml(a.state || 'normal') + '</span>';
+			html += '</div>';
+
+			// Row 2: meta tags
+			html += '<div class="import-alert-meta">';
+			if (severity) {
+				html += '<span class="tag ' + sevClass + '">' + escapeHtml(severity) + '</span>';
+			}
+			if (a['for']) {
+				html += '<span class="tag tag-timeout">for: ' + escapeHtml(a['for']) + '</span>';
+			}
+			var labelPairs = Object.keys(labels).filter(function(k) { return k !== 'severity'; });
+			for (var i = 0; i < labelPairs.length; i++) {
+				var k = labelPairs[i];
+				html += '<span class="tag tag-match">' + escapeHtml(k) + '=' + escapeHtml(labels[k]) + '</span>';
+			}
+			html += '</div>';
+
+			// Row 3: summary
+			if (a.annotations && a.annotations.summary) {
+				html += '<div class="import-alert-summary">' + escapeHtml(a.annotations.summary) + '</div>';
+			}
+
+			html += '</div>';
+			return html;
+		}
+
+		function selectAlert(alertJson) {
+			var a = JSON.parse(alertJson);
+			var labels = a.labels || {};
+			var lines = ['alertname=' + a.title];
+			for (var k in labels) {
+				lines.push(k + '=' + labels[k]);
+			}
+			var textarea = document.getElementById('match-labels');
+			textarea.value = lines.join('\n');
+			autoResize(textarea);
+			closeGrafanaImport();
+		}
+
+		function escapeHtml(s) {
+			var d = document.createElement('div');
+			d.appendChild(document.createTextNode(s));
+			return d.innerHTML;
+		}
+	</script>
+}
+
+templ toolPickerModal() {
+	<dialog id="tool-picker-modal">
+		<article class="import-modal-content">
+			<header>
+				<div class="import-modal-title">
+					@toolIcon()
+					<h3>Select MCP Tools</h3>
+				</div>
+				<button type="button" class="close-modal" onclick="closeToolPicker()" aria-label="Close">&times;</button>
+			</header>
+			<div class="import-modal-search">
+				<input type="text" id="tool-search" placeholder="Search by name or description..." oninput="filterTools()" autocomplete="off"/>
+			</div>
+			<div id="tool-picker-list" class="import-alert-list">
+				<div class="import-loading">
+					<div class="import-spinner"></div>
+					Loading tools...
+				</div>
+			</div>
+			<footer>
+				<span id="tool-picker-count" class="import-count"></span>
+				<div class="tool-picker-actions">
+					<button type="button" class="outline secondary" onclick="closeToolPicker()">Cancel</button>
+					<button type="button" onclick="applySelectedTools()">Apply</button>
+				</div>
+			</footer>
+		</article>
+	</dialog>
+	<script>
+		var _allTools = [];
+		var _selectedTools = new Set();
+
+		function openToolPicker() {
+			var modal = document.getElementById('tool-picker-modal');
+			modal.showModal();
+			document.getElementById('tool-search').value = '';
+
+			// Pre-select tools already in the input
+			var current = document.getElementById('allowed-tools').value;
+			_selectedTools = new Set();
+			if (current.trim()) {
+				current.split(',').forEach(function(t) {
+					var name = t.trim();
+					if (name) _selectedTools.add(name);
+				});
+			}
+
+			document.getElementById('tool-picker-list').innerHTML =
+				'<div class="import-loading"><div class="import-spinner"></div>Loading tools...</div>';
+			fetch('/api/tools')
+				.then(function(r) {
+					if (!r.ok) throw new Error(r.statusText);
+					return r.json();
+				})
+				.then(function(tools) {
+					_allTools = tools || [];
+					renderTools(_allTools);
+					updateToolCount(_allTools.length, _allTools.length);
+				})
+				.catch(function(err) {
+					document.getElementById('tool-picker-list').innerHTML =
+						'<div class="import-empty"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg><p>Failed to load tools</p></div>';
+				});
+		}
+
+		function closeToolPicker() {
+			document.getElementById('tool-picker-modal').close();
+		}
+
+		function updateToolCount(shown, total) {
+			var sel = _selectedTools.size;
+			var el = document.getElementById('tool-picker-count');
+			var parts = [];
+			if (shown === total) {
+				parts.push(total + ' tool' + (total !== 1 ? 's' : ''));
+			} else {
+				parts.push(shown + ' of ' + total + ' tools');
+			}
+			if (sel > 0) parts.push(sel + ' selected');
+			el.textContent = parts.join(' · ');
+		}
+
+		function filterTools() {
+			var q = document.getElementById('tool-search').value.toLowerCase();
+			var filtered = _allTools.filter(function(t) {
+				return t.name.toLowerCase().indexOf(q) >= 0 ||
+					(t.description || '').toLowerCase().indexOf(q) >= 0;
+			});
+			renderTools(filtered);
+			updateToolCount(filtered.length, _allTools.length);
+		}
+
+		function renderTools(tools) {
+			var container = document.getElementById('tool-picker-list');
+			if (tools.length === 0) {
+				container.innerHTML =
+					'<div class="import-empty"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/></svg><p>No matching tools</p></div>';
+				return;
+			}
+
+			var html = '';
+			for (var i = 0; i < tools.length; i++) {
+				var t = tools[i];
+				var checked = _selectedTools.has(t.name);
+				html += '<div class="tool-picker-item' + (checked ? ' selected' : '') + '" onclick="toggleTool(this, \'' + escapeAttr(t.name) + '\')">';
+				html += '<div class="tool-picker-header">';
+				html += '<label class="tool-picker-check"><input type="checkbox"' + (checked ? ' checked' : '') + ' onclick="event.stopPropagation(); toggleTool(this.closest(\'.tool-picker-item\'), \'' + escapeAttr(t.name) + '\')"/></label>';
+				html += '<span class="tool-picker-name">' + escapeHtml(t.name) + '</span>';
+				html += '</div>';
+				if (t.description) {
+					html += '<div class="tool-picker-desc">' + escapeHtml(t.description) + '</div>';
+				}
+				html += '</div>';
+			}
+			container.innerHTML = html;
+		}
+
+		function toggleTool(el, name) {
+			if (_selectedTools.has(name)) {
+				_selectedTools.delete(name);
+				el.classList.remove('selected');
+				el.querySelector('input[type=checkbox]').checked = false;
+			} else {
+				_selectedTools.add(name);
+				el.classList.add('selected');
+				el.querySelector('input[type=checkbox]').checked = true;
+			}
+			updateToolCount(
+				document.querySelectorAll('#tool-picker-list .tool-picker-item').length,
+				_allTools.length
+			);
+		}
+
+		function applySelectedTools() {
+			document.getElementById('allowed-tools').value = Array.from(_selectedTools).join(', ');
+			closeToolPicker();
+		}
+
+		function escapeAttr(s) {
+			return s.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+		}
+	</script>
+}
+
+templ toolIcon() {
+	<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+		<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
+	</svg>
+}
+
+templ grafanaIcon() {
+	<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+		<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path>
+		<path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path>
+		<line x1="12" y1="2" x2="12" y2="4"></line>
+	</svg>
+}
+
+templ emptyIcon() {
+	<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+		<path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path>
+		<polyline points="14 2 14 8 20 8"></polyline>
+		<line x1="16" y1="13" x2="8" y2="13"></line>
+		<line x1="16" y1="17" x2="8" y2="17"></line>
+		<line x1="10" y1="9" x2="8" y2="9"></line>
+	</svg>
+}

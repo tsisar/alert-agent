@@ -1,0 +1,12 @@
+scenarios:
+  - name: "default"
+    match: {}
+    prompt: |
+      Unknown alert type. Investigate as best you can:
+      1. Look at the alert labels and annotations for clues
+      2. Search for dashboards related to the service or component
+      3. Query Prometheus for relevant metrics
+      4. Check Loki logs if applicable
+      5. Provide a summary of what you found
+    timeout: 2m
+    priority: normal

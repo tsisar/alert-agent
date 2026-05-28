@@ -1,0 +1,93 @@
+image:
+  repository: ghcr.io/tsisar/alert-agent
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+replicas: 1
+
+resources:
+  limits:
+    memory: 256Mi
+  requests:
+    cpu: 50m
+    memory: 128Mi
+    ephemeral-storage: 64Mi
+
+service:
+  type: ClusterIP
+  port: 8080
+
+ingress:
+  enabled: false
+  ingressClassName: "nginx"
+  annotations: {}
+  hosts:
+    - host: alert-agent.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+# Gateway API HTTPRoute (alternative to Ingress, for clusters using
+# Gateway API — kgateway, Cilium Gateway, Istio Gateway, etc.).
+# Enable at most one of `ingress` or `httpRoute`.
+#
+# To expose only the webhook (recommended when the gateway is internet-facing):
+#   httpRoute:
+#     paths:
+#       - path: /webhook
+#         type: PathPrefix
+httpRoute:
+  enabled: false
+  annotations: {}
+  hostnames:
+    - alert-agent.example.com
+  gateway:
+    name: kg
+    namespace: kgateway-system
+  paths:
+    - path: /
+      type: PathPrefix
+
+# Environment variables for the alert-agent container.
+# Leave a value empty ("") to fall back to the binary's compiled-in default
+# (see configs/config.yaml and docs/configuration.md).
+env:
+  HTTP_ADDR: ":8080"
+  LLM_PROVIDER: "openai"
+  LLM_MODEL: "gpt-4o"
+  LLM_BASE_URL: ""
+  LLM_MAX_TOKENS: "32768"
+  LLM_SUMMARY_MAX_TOKENS: "4096"
+  LLM_CONTEXT_LIMIT: "0"
+  MCP_CONFIG_PATH: "/etc/alert-agent/mcp.json"
+  DATABASE_DRIVER: "sqlite"
+  DATABASE_DSN: "/data/alert-agent.db"
+  REDIS_URL: ""
+  ALERT_COOLDOWN: "48h"
+  LOG_LEVEL: "info"
+  LOG_SAVE: "false"
+  LOG_TIMEZONE: "UTC"
+  LOG_SHOW_CALLER: "false"
+  TELEGRAM_DEFAULT_CHANNEL: ""
+  SLACK_DEFAULT_CHANNEL: ""
+
+persistence:
+  size: 64Mi
+  storageClass: ""
+
+# Secrets are rendered into a Kubernetes Secret only if at least one value
+# is non-empty. In production wire them in via --set or an external secret
+# store rather than committing them here.
+secret:
+  LLM_API_KEY: ""
+  TELEGRAM_BOT_TOKEN: ""
+  SLACK_BOT_TOKEN: ""
+
+# MCP servers config. Rendered into a ConfigMap mounted at $MCP_CONFIG_PATH.
+# Override with your own MCP server URLs; only the `sse` transport is supported.
+mcp:
+  servers:
+    grafana:
+      type: sse
+      url: "http://mcp-grafana.example.com/sse"

@@ -1,0 +1,59 @@
+package templates
+
+import "github.com/tsisar/alert-agent/internal/storage"
+
+templ PromptsPage(prompts *storage.PromptSet) {
+	@Layout("Prompts", "prompts") {
+		@PageHeader("Prompts", "These templates control LLM behavior during alert investigation and notification.") {
+			<a href="/scenarios" role="button" class="outline secondary">View Scenarios</a>
+		}
+		@NoticeBanner("info", "Tip: update prompts one-by-one and save each card to keep changes traceable.")
+		@SectionCard("Prompt Templates", "Each template maps to a distinct stage in the alert workflow.") {
+			<div class="prompt-list">
+				@PromptCard("system", "System Prompt", prompts.System)
+				@PromptCard("summary", "Summary Prompt", prompts.Summary)
+				@PromptCard("resolved", "Resolved Prompt", prompts.Resolved)
+				@PromptCard("paused", "Paused Prompt", prompts.Paused)
+			</div>
+		}
+	}
+}
+
+templ PromptCard(key, label, value string) {
+	<article class="prompt-card" id={ "prompt-" + key }>
+		<header>
+			<div class="prompt-card-title-wrap">
+				<strong>{ label }</strong>
+				<small>{ key }</small>
+			</div>
+		</header>
+		<form
+			hx-put={ "/prompts/" + key }
+			hx-target={ "#prompt-" + key }
+			hx-swap="outerHTML"
+		>
+			<textarea name="value" rows="10">{ value }</textarea>
+			<button type="submit">Save</button>
+		</form>
+	</article>
+}
+
+templ PromptCardSaved(key, label, value string) {
+	<article class="prompt-card" id={ "prompt-" + key }>
+		<header>
+			<div class="prompt-card-title-wrap">
+				<strong>{ label }</strong>
+				<small>{ key }</small>
+			</div>
+		</header>
+		<form
+			hx-put={ "/prompts/" + key }
+			hx-target={ "#prompt-" + key }
+			hx-swap="outerHTML"
+		>
+			<textarea name="value" rows="10">{ value }</textarea>
+			<button type="submit">Save</button>
+		</form>
+		<div class="toast">Saved</div>
+	</article>
+}

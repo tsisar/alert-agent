@@ -1,0 +1,61 @@
+# Docker Compose deployment for Alert Agent.
+#
+# Usage:
+#   cd deployment/compose
+#   docker compose up -d
+#
+# Configuration:
+#   - Reads ../../.env for LLM_API_KEY, TELEGRAM_BOT_TOKEN, SLACK_BOT_TOKEN, etc.
+#   - Reads ../../.mcp.json for MCP server config (mounted read-only).
+#   - SQLite data persists in the `alert-agent-data` named volume.
+#
+# To enable Redis for cross-restart dedup, queue durability, and a DLQ,
+# uncomment the `redis` service block, the REDIS_URL env var, the
+# depends_on block, and the `alert-agent-redis` volume.
+
+services:
+  alert-agent:
+    image: ghcr.io/tsisar/alert-agent:latest
+    # Build from source instead (run `docker compose build` first):
+    # build:
+    #   context: ../..
+    container_name: alert-agent
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    env_file:
+      - ../../.env
+    environment:
+      MCP_CONFIG_PATH: /etc/alert-agent/mcp.json
+      DATABASE_DRIVER: sqlite
+      DATABASE_DSN: /data/alert-agent.db
+      # REDIS_URL: redis://redis:6379
+    volumes:
+      - ../../.mcp.json:/etc/alert-agent/mcp.json:ro
+      - alert-agent-data:/data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    # depends_on:
+    #   redis:
+    #     condition: service_healthy
+
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: alert-agent-redis
+  #   restart: unless-stopped
+  #   command: ["redis-server", "--appendonly", "yes"]
+  #   volumes:
+  #     - alert-agent-redis:/data
+  #   healthcheck:
+  #     test: ["CMD", "redis-cli", "PING"]
+  #     interval: 10s
+  #     timeout: 3s
+  #     retries: 3
+
+volumes:
+  alert-agent-data:
+  # alert-agent-redis:

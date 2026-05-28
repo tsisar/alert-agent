@@ -1,0 +1,30 @@
+http:
+  addr: ":8080"
+
+mcp:
+  config_path: ".mcp.json"
+
+database:
+  driver: "sqlite"
+  dsn: "./alert-agent.db"
+
+llm:
+  provider: "openai"
+  api_key: ""
+  base_url: ""
+  model: "gpt-4o"
+  max_tokens: 4096
+  context_limit: 0            # Model context window size (0 = no limit)
+
+telegram:
+  bot_token: ""
+  default_channel: ""
+
+slack:
+  bot_token: ""
+  default_channel: ""
+
+redis:
+  url: ""                     # Redis URL (empty = in-memory, e.g. "redis://localhost:6379")
+
+alert_cooldown: "48h"

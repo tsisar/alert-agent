@@ -1,0 +1,36 @@
+/.idea/
+/.tmp/
+
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
+coverage.html
+
+# Go workspace file
+go.work
+go.work.sum
+
+# Dependency directories
+vendor/
+
+# Build output
+/bin/
+/dist/
+
+# Environment and config files with credentials
+.env
+.env.local
+
+/alert-agent.db
+/alert-agent
+/.claude/
+CLAUDE.md
