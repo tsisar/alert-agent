@@ -1,7 +1,7 @@
 FROM --platform=$BUILDPLATFORM golang:1.25-alpine AS builder
 
-ARG TARGETOS=linux
-ARG TARGETARCH=amd64
+ARG TARGETOS
+ARG TARGETARCH
 ARG VERSION=dev
 ARG COMMIT=none
 ARG DATE=unknown
