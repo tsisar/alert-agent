@@ -49,17 +49,17 @@ need it manually after editing `.templ` files in `internal/web/templates/`.
 
 ### Branches
 
-Branch off `master` (`release` for hotfixes only). Use kebab-case after the
+Branch off `main` (`release` for hotfixes only). Use kebab-case after the
 prefix.
 
 | Prefix      | Branched from | Purpose                                 |
 |-------------|---------------|-----------------------------------------|
-| `feature/`  | `master`      | New functionality                       |
-| `fix/`      | `master`      | Bug fix targeting the next release      |
-| `chore/`    | `master`      | Tooling, deps, refactors, no behavior   |
-| `ci/`       | `master`      | CI / build pipeline changes             |
-| `docs/`     | `master`      | Documentation only                      |
-| `refactor/` | `master`      | Internal restructuring without behavior |
+| `feature/`  | `main`      | New functionality                       |
+| `fix/`      | `main`      | Bug fix targeting the next release      |
+| `chore/`    | `main`      | Tooling, deps, refactors, no behavior   |
+| `ci/`       | `main`      | CI / build pipeline changes             |
+| `docs/`     | `main`      | Documentation only                      |
+| `refactor/` | `main`      | Internal restructuring without behavior |
 | `hotfix/`   | `release`     | Urgent production fix                   |
 
 Examples: `feature/redis-streams-dlq`, `fix/ci-remove-trivy`,
@@ -126,7 +126,7 @@ must be in English.
 
 ## Pull requests
 
-- Open against `master` (`release` for hotfixes).
+- Open against `main` (`release` for hotfixes).
 - Reference the issue you are addressing in the PR description if there is one.
 - CI must be green before review.
 - Update `CHANGELOG.md` under `## [Unreleased]` if the change is user-visible.
