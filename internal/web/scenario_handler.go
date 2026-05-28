@@ -79,6 +79,52 @@ func (h *Handler) editScenario(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (h *Handler) copyScenario(w http.ResponseWriter, r *http.Request) {
+	id, err := parseID(r)
+	if err != nil {
+		http.Error(w, errInvalidID, http.StatusBadRequest)
+		return
+	}
+	scenarios, err := h.scenarios.List()
+	if err != nil {
+		http.Error(w, "failed to load scenarios", http.StatusInternalServerError)
+		log.Errorf("list scenarios for copy: %v", err)
+		return
+	}
+	var source *storage.Scenario
+	for i := range scenarios {
+		if scenarios[i].ID == uint(id) {
+			source = &scenarios[i]
+			break
+		}
+	}
+	if source == nil {
+		http.Error(w, "scenario not found", http.StatusNotFound)
+		return
+	}
+
+	dup := *source
+	dup.ID = 0
+	dup.Name = copyName(source.Name, scenarios)
+	dup.OrderIndex = 0
+
+	if err := templates.ScenarioFormPage(&dup, false).Render(r.Context(), w); err != nil {
+		log.Errorf("render copy scenario page: %v", err)
+	}
+}
+
+func copyName(base string, existing []storage.Scenario) string {
+	taken := make(map[string]bool, len(existing))
+	for _, s := range existing {
+		taken[s.Name] = true
+	}
+	name := base + " (copy)"
+	for i := 2; taken[name]; i++ {
+		name = fmt.Sprintf("%s (copy %d)", base, i)
+	}
+	return name
+}
+
 func (h *Handler) updateScenario(w http.ResponseWriter, r *http.Request) {
 	id, err := parseID(r)
 	if err != nil {

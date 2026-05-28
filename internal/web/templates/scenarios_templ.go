@@ -527,46 +527,59 @@ func ScenarioCard(s storage.Scenario) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "\" role=\"button\" class=\"btn-highlight\">Edit</a> <button hx-delete=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "\" role=\"button\" class=\"btn-highlight\">Edit</a> <a href=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var25 string
-		templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("/scenarios/%d", s.ID))
+		var templ_7745c5c3_Var25 templ.SafeURL
+		templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(fmt.Sprintf("/scenarios/%d/copy", s.ID)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 165, Col: 50}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 165, Col: 65}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var25)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var25))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "\" hx-target=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "\" role=\"button\" class=\"outline secondary\">Copy</a> <button hx-delete=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var26 string
-		templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("#scenario-%d", s.ID))
+		templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("/scenarios/%d", s.ID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 166, Col: 49}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 172, Col: 50}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var26)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 38, "\" hx-swap=\"outerHTML\" hx-confirm=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 38, "\" hx-target=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var27 string
-		templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("Delete scenario \"%s\"?", s.Name))
+		templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("#scenario-%d", s.ID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 168, Col: 63}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 173, Col: 49}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var27)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, "\" class=\"outline secondary\">Delete</button></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, "\" hx-swap=\"outerHTML\" hx-confirm=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var28 string
+		templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("Delete scenario \"%s\"?", s.Name))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 175, Col: 63}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var28)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 40, "\" class=\"outline secondary\">Delete</button></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -590,12 +603,12 @@ func ScenarioFormPage(s *storage.Scenario, isEdit bool) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var28 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var28 == nil {
-			templ_7745c5c3_Var28 = templ.NopComponent
+		templ_7745c5c3_Var29 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var29 == nil {
+			templ_7745c5c3_Var29 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Var29 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_Var30 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 			templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 			templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
 			if !templ_7745c5c3_IsBuffer {
@@ -608,29 +621,6 @@ func ScenarioFormPage(s *storage.Scenario, isEdit bool) templ.Component {
 			}
 			ctx = templ.InitializeContext(ctx)
 			if isEdit {
-				templ_7745c5c3_Var30 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
-					templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
-					templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
-					if !templ_7745c5c3_IsBuffer {
-						defer func() {
-							templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
-							if templ_7745c5c3_Err == nil {
-								templ_7745c5c3_Err = templ_7745c5c3_BufErr
-							}
-						}()
-					}
-					ctx = templ.InitializeContext(ctx)
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 40, "<a href=\"/scenarios\" role=\"button\" class=\"outline secondary\">Back to Scenarios</a>")
-					if templ_7745c5c3_Err != nil {
-						return templ_7745c5c3_Err
-					}
-					return nil
-				})
-				templ_7745c5c3_Err = PageHeader("Edit Scenario", "Update matching and investigation behavior for this scenario.").Render(templ.WithChildren(ctx, templ_7745c5c3_Var30), templ_7745c5c3_Buffer)
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-			} else {
 				templ_7745c5c3_Var31 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 					templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 					templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
@@ -649,16 +639,39 @@ func ScenarioFormPage(s *storage.Scenario, isEdit bool) templ.Component {
 					}
 					return nil
 				})
-				templ_7745c5c3_Err = PageHeader("New Scenario", "Create a new rule for alert matching, investigation, and routing.").Render(templ.WithChildren(ctx, templ_7745c5c3_Var31), templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = PageHeader("Edit Scenario", "Update matching and investigation behavior for this scenario.").Render(templ.WithChildren(ctx, templ_7745c5c3_Var31), templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			} else {
+				templ_7745c5c3_Var32 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+					templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+					templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+					if !templ_7745c5c3_IsBuffer {
+						defer func() {
+							templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+							if templ_7745c5c3_Err == nil {
+								templ_7745c5c3_Err = templ_7745c5c3_BufErr
+							}
+						}()
+					}
+					ctx = templ.InitializeContext(ctx)
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, "<a href=\"/scenarios\" role=\"button\" class=\"outline secondary\">Back to Scenarios</a>")
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					return nil
+				})
+				templ_7745c5c3_Err = PageHeader("New Scenario", "Create a new rule for alert matching, investigation, and routing.").Render(templ.WithChildren(ctx, templ_7745c5c3_Var32), templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, " ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, " ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Var32 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+			templ_7745c5c3_Var33 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 				templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 				templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
 				if !templ_7745c5c3_IsBuffer {
@@ -676,13 +689,13 @@ func ScenarioFormPage(s *storage.Scenario, isEdit bool) templ.Component {
 				}
 				return nil
 			})
-			templ_7745c5c3_Err = SectionCard("Scenario Details", "Fields below control matching, investigation and notification channels.").Render(templ.WithChildren(ctx, templ_7745c5c3_Var32), templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = SectionCard("Scenario Details", "Fields below control matching, investigation and notification channels.").Render(templ.WithChildren(ctx, templ_7745c5c3_Var33), templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = Layout(formTitle(isEdit), "scenarios").Render(templ.WithChildren(ctx, templ_7745c5c3_Var29), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = Layout(formTitle(isEdit), "scenarios").Render(templ.WithChildren(ctx, templ_7745c5c3_Var30), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -713,132 +726,132 @@ func ScenarioForm(s *storage.Scenario, isEdit bool) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var33 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var33 == nil {
-			templ_7745c5c3_Var33 = templ.NopComponent
+		templ_7745c5c3_Var34 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var34 == nil {
+			templ_7745c5c3_Var34 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, "<form")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 44, "<form")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if isEdit {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 44, " hx-put=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 45, " hx-put=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var34 string
-			templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("/scenarios/%d", s.ID))
+			var templ_7745c5c3_Var35 string
+			templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("/scenarios/%d", s.ID))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 204, Col: 46}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 211, Col: 46}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var34)
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var35)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 45, "\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 46, "\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 46, " hx-post=\"/scenarios\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, " hx-post=\"/scenarios\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, " hx-target=\"body\" hx-push-url=\"/scenarios\" class=\"scenario-form\"><div class=\"form-section\"><div class=\"form-section-head\"><span class=\"form-section-num\">1</span><h3 class=\"form-section-title\">General</h3><span class=\"form-section-desc\">Name, order, timeout and priority</span></div><div class=\"grid\"><label>Name <input type=\"text\" name=\"name\" value=\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var35 string
-		templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.ResolveAttributeValue(s.Name)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 221, Col: 50}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var35)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 48, "\" required></label> <label>Order Index <input type=\"number\" name=\"order_index\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 48, " hx-target=\"body\" hx-push-url=\"/scenarios\" class=\"scenario-form\"><div class=\"form-section\"><div class=\"form-section-head\"><span class=\"form-section-num\">1</span><h3 class=\"form-section-title\">General</h3><span class=\"form-section-desc\">Name, order, timeout and priority</span></div><div class=\"grid\"><label>Name <input type=\"text\" name=\"name\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var36 string
-		templ_7745c5c3_Var36, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprint(s.OrderIndex))
+		templ_7745c5c3_Var36, templ_7745c5c3_Err = templ.ResolveAttributeValue(s.Name)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 225, Col: 77}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 228, Col: 50}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var36)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 49, "\"></label></div><div class=\"grid\"><label>Timeout <input type=\"text\" name=\"timeout\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 49, "\" required></label> <label>Order Index <input type=\"number\" name=\"order_index\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var37 string
-		templ_7745c5c3_Var37, templ_7745c5c3_Err = templ.ResolveAttributeValue(s.Timeout)
+		templ_7745c5c3_Var37, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprint(s.OrderIndex))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 231, Col: 56}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 232, Col: 77}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var37)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 50, "\" placeholder=\"2m\"></label><div class=\"field\"><span class=\"field-label\">Priority</span><div class=\"segment-control\" role=\"radiogroup\" aria-label=\"Priority\"><label class=\"segment\" data-priority=\"normal\"><input type=\"radio\" name=\"priority\" value=\"normal\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		if s.Priority == "normal" || s.Priority == "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 51, " checked")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 52, "> <span>Normal</span></label> <label class=\"segment\" data-priority=\"high\"><input type=\"radio\" name=\"priority\" value=\"high\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		if s.Priority == "high" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 53, " checked")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 54, "> <span>High</span></label> <label class=\"segment\" data-priority=\"critical\"><input type=\"radio\" name=\"priority\" value=\"critical\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		if s.Priority == "critical" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 55, " checked")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 56, "> <span>Critical</span></label></div></div></div><label class=\"toggle\"><input type=\"checkbox\" name=\"send_images\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		if s.SendImages {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 57, " checked")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 58, "> <span>Send images with investigation report</span></label></div><div class=\"form-section\"><div class=\"form-section-head\"><span class=\"form-section-num\">2</span><h3 class=\"form-section-title\">Matching</h3><span class=\"form-section-desc\">Which alerts this scenario handles</span></div><label>Match Labels <textarea id=\"match-labels\" name=\"match\" rows=\"1\" class=\"auto-resize\" placeholder=\"alertname=HighCPU&#10;severity=critical\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 50, "\"></label></div><div class=\"grid\"><label>Timeout <input type=\"text\" name=\"timeout\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var38 string
-		templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.JoinStringErrs(formatMatch(s.Match))
+		templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.ResolveAttributeValue(s.Timeout)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 264, Col: 150}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 238, Col: 56}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var38))
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var38)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 59, "</textarea></label><div class=\"form-help-row\"><p class=\"form-help\">One key=value pair per line. Leave empty for a catch-all scenario.</p><button type=\"button\" class=\"btn-import\" onclick=\"openGrafanaImport()\">Import from Grafana</button></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 51, "\" placeholder=\"2m\"></label><div class=\"field\"><span class=\"field-label\">Priority</span><div class=\"segment-control\" role=\"radiogroup\" aria-label=\"Priority\"><label class=\"segment\" data-priority=\"normal\"><input type=\"radio\" name=\"priority\" value=\"normal\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if s.Priority == "normal" || s.Priority == "" {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 52, " checked")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 53, "> <span>Normal</span></label> <label class=\"segment\" data-priority=\"high\"><input type=\"radio\" name=\"priority\" value=\"high\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if s.Priority == "high" {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 54, " checked")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 55, "> <span>High</span></label> <label class=\"segment\" data-priority=\"critical\"><input type=\"radio\" name=\"priority\" value=\"critical\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if s.Priority == "critical" {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 56, " checked")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 57, "> <span>Critical</span></label></div></div></div><label class=\"toggle\"><input type=\"checkbox\" name=\"send_images\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if s.SendImages {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 58, " checked")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 59, "> <span>Send images with investigation report</span></label></div><div class=\"form-section\"><div class=\"form-section-head\"><span class=\"form-section-num\">2</span><h3 class=\"form-section-title\">Matching</h3><span class=\"form-section-desc\">Which alerts this scenario handles</span></div><label>Match Labels <textarea id=\"match-labels\" name=\"match\" rows=\"1\" class=\"auto-resize\" placeholder=\"alertname=HighCPU&#10;severity=critical\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var39 string
+		templ_7745c5c3_Var39, templ_7745c5c3_Err = templ.JoinStringErrs(formatMatch(s.Match))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 271, Col: 150}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var39))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 60, "</textarea></label><div class=\"form-help-row\"><p class=\"form-help\">One key=value pair per line. Leave empty for a catch-all scenario.</p><button type=\"button\" class=\"btn-import\" onclick=\"openGrafanaImport()\">Import from Grafana</button></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -846,33 +859,33 @@ func ScenarioForm(s *storage.Scenario, isEdit bool) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 60, "</div><div class=\"form-section\"><div class=\"form-section-head\"><span class=\"form-section-num\">3</span><h3 class=\"form-section-title\">Investigation</h3><span class=\"form-section-desc\">LLM prompt and allowed tools</span></div><label>Prompt <textarea name=\"prompt\" rows=\"8\" required>")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var39 string
-		templ_7745c5c3_Var39, templ_7745c5c3_Err = templ.JoinStringErrs(s.Prompt)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 280, Col: 56}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var39))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 61, "</textarea></label><p class=\"form-help\">Instructions for the LLM on how to investigate alerts matched by this scenario.</p><label>Allowed Tools <input type=\"text\" id=\"allowed-tools\" name=\"tools\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 61, "</div><div class=\"form-section\"><div class=\"form-section-head\"><span class=\"form-section-num\">3</span><h3 class=\"form-section-title\">Investigation</h3><span class=\"form-section-desc\">LLM prompt and allowed tools</span></div><label>Prompt <textarea name=\"prompt\" rows=\"8\" required>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var40 string
-		templ_7745c5c3_Var40, templ_7745c5c3_Err = templ.ResolveAttributeValue(strings.Join([]string(s.Tools), ", "))
+		templ_7745c5c3_Var40, templ_7745c5c3_Err = templ.JoinStringErrs(s.Prompt)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 285, Col: 100}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 287, Col: 56}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var40)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var40))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 62, "\" placeholder=\"search_dashboards, get_datasource_by_uid\"></label><div class=\"form-help-row\"><p class=\"form-help\">Comma-separated list of MCP tool names. Leave empty to allow all available tools.</p><button type=\"button\" class=\"btn-import\" onclick=\"openToolPicker()\">Browse Tools</button></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 62, "</textarea></label><p class=\"form-help\">Instructions for the LLM on how to investigate alerts matched by this scenario.</p><label>Allowed Tools <input type=\"text\" id=\"allowed-tools\" name=\"tools\" value=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var41 string
+		templ_7745c5c3_Var41, templ_7745c5c3_Err = templ.ResolveAttributeValue(strings.Join([]string(s.Tools), ", "))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 292, Col: 100}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var41)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 63, "\" placeholder=\"search_dashboards, get_datasource_by_uid\"></label><div class=\"form-help-row\"><p class=\"form-help\">Comma-separated list of MCP tool names. Leave empty to allow all available tools.</p><button type=\"button\" class=\"btn-import\" onclick=\"openToolPicker()\">Browse Tools</button></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -880,48 +893,48 @@ func ScenarioForm(s *storage.Scenario, isEdit bool) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 63, "</div><div class=\"form-section\"><div class=\"form-section-head\"><span class=\"form-section-num\">4</span><h3 class=\"form-section-title\">Notification Channels</h3><span class=\"form-section-desc\">Override default routing</span></div><div class=\"grid\"><label>Telegram Channel <input type=\"text\" name=\"channel_telegram\" value=\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var41 string
-		templ_7745c5c3_Var41, templ_7745c5c3_Err = templ.ResolveAttributeValue(s.ChannelTelegram)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 302, Col: 73}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var41)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 64, "\" placeholder=\"-100123456789\"></label> <label>Slack Channel <input type=\"text\" name=\"channel_slack\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 64, "</div><div class=\"form-section\"><div class=\"form-section-head\"><span class=\"form-section-num\">4</span><h3 class=\"form-section-title\">Notification Channels</h3><span class=\"form-section-desc\">Override default routing</span></div><div class=\"grid\"><label>Telegram Channel <input type=\"text\" name=\"channel_telegram\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var42 string
-		templ_7745c5c3_Var42, templ_7745c5c3_Err = templ.ResolveAttributeValue(s.ChannelSlack)
+		templ_7745c5c3_Var42, templ_7745c5c3_Err = templ.ResolveAttributeValue(s.ChannelTelegram)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 306, Col: 67}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 309, Col: 73}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var42)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 65, "\" placeholder=\"#alerts\"></label></div><p class=\"form-help\">Override the default notification channels for this scenario. Leave empty to use defaults.</p></div><div class=\"form-actions\"><button type=\"submit\" class=\"btn-highlight\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 65, "\" placeholder=\"-100123456789\"></label> <label>Slack Channel <input type=\"text\" name=\"channel_slack\" value=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var43 string
+		templ_7745c5c3_Var43, templ_7745c5c3_Err = templ.ResolveAttributeValue(s.ChannelSlack)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 313, Col: 67}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var43)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 66, "\" placeholder=\"#alerts\"></label></div><p class=\"form-help\">Override the default notification channels for this scenario. Leave empty to use defaults.</p></div><div class=\"form-actions\"><button type=\"submit\" class=\"btn-highlight\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if isEdit {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 66, "Update Scenario")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 67, "Update Scenario")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 67, "Create Scenario")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 68, "Create Scenario")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 68, "</button> <a href=\"/scenarios\" role=\"button\" class=\"outline secondary\">Cancel</a></div></form>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 69, "</button> <a href=\"/scenarios\" role=\"button\" class=\"outline secondary\">Cancel</a></div></form>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -956,12 +969,12 @@ func grafanaImportModal() templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var43 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var43 == nil {
-			templ_7745c5c3_Var43 = templ.NopComponent
+		templ_7745c5c3_Var44 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var44 == nil {
+			templ_7745c5c3_Var44 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 69, "<dialog id=\"grafana-import-modal\"><article class=\"import-modal-content\"><header><div class=\"import-modal-title\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 70, "<dialog id=\"grafana-import-modal\"><article class=\"import-modal-content\"><header><div class=\"import-modal-title\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -969,7 +982,7 @@ func grafanaImportModal() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 70, "<h3>Import from Grafana Alerting</h3></div><button type=\"button\" class=\"close-modal\" onclick=\"closeGrafanaImport()\" aria-label=\"Close\">&times;</button></header><div class=\"import-modal-search\"><input type=\"text\" id=\"grafana-search\" placeholder=\"Search by name, label, or group...\" oninput=\"filterAlerts()\" autocomplete=\"off\"></div><div id=\"grafana-alert-list\" class=\"import-alert-list\"><div class=\"import-loading\"><div class=\"import-spinner\"></div>Loading alert rules...</div></div><footer><span id=\"grafana-alert-count\" class=\"import-count\"></span> <button type=\"button\" class=\"outline secondary\" onclick=\"closeGrafanaImport()\">Cancel</button></footer></article></dialog><script>\n\t\tvar _grafanaAlerts = [];\n\n\t\tfunction openGrafanaImport() {\n\t\t\tvar modal = document.getElementById('grafana-import-modal');\n\t\t\tmodal.showModal();\n\t\t\tdocument.getElementById('grafana-search').value = '';\n\t\t\tdocument.getElementById('grafana-alert-count').textContent = '';\n\t\t\tdocument.getElementById('grafana-alert-list').innerHTML =\n\t\t\t\t'<div class=\"import-loading\"><div class=\"import-spinner\"></div>Loading alert rules...</div>';\n\t\t\tfetch('/api/grafana/alerts')\n\t\t\t\t.then(function(r) {\n\t\t\t\t\tif (!r.ok) throw new Error(r.statusText);\n\t\t\t\t\treturn r.json();\n\t\t\t\t})\n\t\t\t\t.then(function(alerts) {\n\t\t\t\t\t_grafanaAlerts = alerts || [];\n\t\t\t\t\trenderAlerts(_grafanaAlerts);\n\t\t\t\t\tupdateCount(_grafanaAlerts.length, _grafanaAlerts.length);\n\t\t\t\t})\n\t\t\t\t.catch(function(err) {\n\t\t\t\t\tdocument.getElementById('grafana-alert-list').innerHTML =\n\t\t\t\t\t\t'<div class=\"import-empty\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"32\" height=\"32\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\"><circle cx=\"12\" cy=\"12\" r=\"10\"/><line x1=\"15\" y1=\"9\" x2=\"9\" y2=\"15\"/><line x1=\"9\" y1=\"9\" x2=\"15\" y2=\"15\"/></svg><p>Failed to load alerts from Grafana</p></div>';\n\t\t\t\t});\n\t\t}\n\n\t\tfunction closeGrafanaImport() {\n\t\t\tdocument.getElementById('grafana-import-modal').close();\n\t\t}\n\n\t\tfunction updateCount(shown, total) {\n\t\t\tvar el = document.getElementById('grafana-alert-count');\n\t\t\tif (shown === total) {\n\t\t\t\tel.textContent = total + ' alert rule' + (total !== 1 ? 's' : '');\n\t\t\t} else {\n\t\t\t\tel.textContent = shown + ' of ' + total + ' rules';\n\t\t\t}\n\t\t}\n\n\t\tfunction filterAlerts() {\n\t\t\tvar q = document.getElementById('grafana-search').value.toLowerCase();\n\t\t\tvar filtered = _grafanaAlerts.filter(function(a) {\n\t\t\t\tif (a.title.toLowerCase().indexOf(q) >= 0) return true;\n\t\t\t\tif ((a.rule_group || '').toLowerCase().indexOf(q) >= 0) return true;\n\t\t\t\tif ((a.folder_uid || '').toLowerCase().indexOf(q) >= 0) return true;\n\t\t\t\tvar labels = a.labels || {};\n\t\t\t\treturn Object.keys(labels).some(function(k) {\n\t\t\t\t\treturn (k + '=' + labels[k]).toLowerCase().indexOf(q) >= 0;\n\t\t\t\t});\n\t\t\t});\n\t\t\trenderAlerts(filtered);\n\t\t\tupdateCount(filtered.length, _grafanaAlerts.length);\n\t\t}\n\n\t\tfunction renderAlerts(alerts) {\n\t\t\tvar container = document.getElementById('grafana-alert-list');\n\t\t\tif (alerts.length === 0) {\n\t\t\t\tcontainer.innerHTML =\n\t\t\t\t\t'<div class=\"import-empty\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"32\" height=\"32\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\"><circle cx=\"12\" cy=\"12\" r=\"10\"/><line x1=\"8\" y1=\"12\" x2=\"16\" y2=\"12\"/></svg><p>No matching alert rules</p></div>';\n\t\t\t\treturn;\n\t\t\t}\n\n\t\t\t// Group by rule_group\n\t\t\tvar groups = {};\n\t\t\tvar groupOrder = [];\n\t\t\tfor (var i = 0; i < alerts.length; i++) {\n\t\t\t\tvar g = alerts[i].rule_group || 'Ungrouped';\n\t\t\t\tif (!groups[g]) {\n\t\t\t\t\tgroups[g] = [];\n\t\t\t\t\tgroupOrder.push(g);\n\t\t\t\t}\n\t\t\t\tgroups[g].push(alerts[i]);\n\t\t\t}\n\n\t\t\tvar html = '';\n\t\t\tfor (var gi = 0; gi < groupOrder.length; gi++) {\n\t\t\t\tvar groupName = groupOrder[gi];\n\t\t\t\tvar items = groups[groupName];\n\t\t\t\thtml += '<div class=\"import-group\">';\n\t\t\t\thtml += '<div class=\"import-group-header\">' + escapeHtml(groupName) + '<span class=\"import-group-count\">' + items.length + '</span></div>';\n\t\t\t\tfor (var j = 0; j < items.length; j++) {\n\t\t\t\t\thtml += renderAlertItem(items[j]);\n\t\t\t\t}\n\t\t\t\thtml += '</div>';\n\t\t\t}\n\t\t\tcontainer.innerHTML = html;\n\t\t}\n\n\t\tfunction renderAlertItem(a) {\n\t\t\tvar labels = a.labels || {};\n\t\t\tvar severity = labels.severity || '';\n\t\t\tvar sevClass = severity === 'critical' ? 'tag-sev-critical' : (severity === 'warning' ? 'tag-sev-warning' : 'tag-sev-info');\n\t\t\tvar stateClass = a.state === 'firing' ? 'tag-alert-firing' : (a.state === 'pending' ? 'tag-alert-pending' : 'tag-alert-normal');\n\n\t\t\tvar html = '<div class=\"import-alert-item\" onclick=\\'selectAlert(' + JSON.stringify(JSON.stringify(a)) + ')\\'>';\n\n\t\t\t// Row 1: title + state\n\t\t\thtml += '<div class=\"import-alert-header\">';\n\t\t\thtml += '<span class=\"import-alert-title\">' + escapeHtml(a.title) + '</span>';\n\t\t\thtml += '<span class=\"tag ' + stateClass + '\">' + escapeHtml(a.state || 'normal') + '</span>';\n\t\t\thtml += '</div>';\n\n\t\t\t// Row 2: meta tags\n\t\t\thtml += '<div class=\"import-alert-meta\">';\n\t\t\tif (severity) {\n\t\t\t\thtml += '<span class=\"tag ' + sevClass + '\">' + escapeHtml(severity) + '</span>';\n\t\t\t}\n\t\t\tif (a['for']) {\n\t\t\t\thtml += '<span class=\"tag tag-timeout\">for: ' + escapeHtml(a['for']) + '</span>';\n\t\t\t}\n\t\t\tvar labelPairs = Object.keys(labels).filter(function(k) { return k !== 'severity'; });\n\t\t\tfor (var i = 0; i < labelPairs.length; i++) {\n\t\t\t\tvar k = labelPairs[i];\n\t\t\t\thtml += '<span class=\"tag tag-match\">' + escapeHtml(k) + '=' + escapeHtml(labels[k]) + '</span>';\n\t\t\t}\n\t\t\thtml += '</div>';\n\n\t\t\t// Row 3: summary\n\t\t\tif (a.annotations && a.annotations.summary) {\n\t\t\t\thtml += '<div class=\"import-alert-summary\">' + escapeHtml(a.annotations.summary) + '</div>';\n\t\t\t}\n\n\t\t\thtml += '</div>';\n\t\t\treturn html;\n\t\t}\n\n\t\tfunction selectAlert(alertJson) {\n\t\t\tvar a = JSON.parse(alertJson);\n\t\t\tvar labels = a.labels || {};\n\t\t\tvar lines = ['alertname=' + a.title];\n\t\t\tfor (var k in labels) {\n\t\t\t\tlines.push(k + '=' + labels[k]);\n\t\t\t}\n\t\t\tvar textarea = document.getElementById('match-labels');\n\t\t\ttextarea.value = lines.join('\\n');\n\t\t\tautoResize(textarea);\n\t\t\tcloseGrafanaImport();\n\t\t}\n\n\t\tfunction escapeHtml(s) {\n\t\t\tvar d = document.createElement('div');\n\t\t\td.appendChild(document.createTextNode(s));\n\t\t\treturn d.innerHTML;\n\t\t}\n\t</script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 71, "<h3>Import from Grafana Alerting</h3></div><button type=\"button\" class=\"close-modal\" onclick=\"closeGrafanaImport()\" aria-label=\"Close\">&times;</button></header><div class=\"import-modal-search\"><input type=\"text\" id=\"grafana-search\" placeholder=\"Search by name, label, or group...\" oninput=\"filterAlerts()\" autocomplete=\"off\"></div><div id=\"grafana-alert-list\" class=\"import-alert-list\"><div class=\"import-loading\"><div class=\"import-spinner\"></div>Loading alert rules...</div></div><footer><span id=\"grafana-alert-count\" class=\"import-count\"></span> <button type=\"button\" class=\"outline secondary\" onclick=\"closeGrafanaImport()\">Cancel</button></footer></article></dialog><script>\n\t\tvar _grafanaAlerts = [];\n\n\t\tfunction openGrafanaImport() {\n\t\t\tvar modal = document.getElementById('grafana-import-modal');\n\t\t\tmodal.showModal();\n\t\t\tdocument.getElementById('grafana-search').value = '';\n\t\t\tdocument.getElementById('grafana-alert-count').textContent = '';\n\t\t\tdocument.getElementById('grafana-alert-list').innerHTML =\n\t\t\t\t'<div class=\"import-loading\"><div class=\"import-spinner\"></div>Loading alert rules...</div>';\n\t\t\tfetch('/api/grafana/alerts')\n\t\t\t\t.then(function(r) {\n\t\t\t\t\tif (!r.ok) throw new Error(r.statusText);\n\t\t\t\t\treturn r.json();\n\t\t\t\t})\n\t\t\t\t.then(function(alerts) {\n\t\t\t\t\t_grafanaAlerts = alerts || [];\n\t\t\t\t\trenderAlerts(_grafanaAlerts);\n\t\t\t\t\tupdateCount(_grafanaAlerts.length, _grafanaAlerts.length);\n\t\t\t\t})\n\t\t\t\t.catch(function(err) {\n\t\t\t\t\tdocument.getElementById('grafana-alert-list').innerHTML =\n\t\t\t\t\t\t'<div class=\"import-empty\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"32\" height=\"32\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\"><circle cx=\"12\" cy=\"12\" r=\"10\"/><line x1=\"15\" y1=\"9\" x2=\"9\" y2=\"15\"/><line x1=\"9\" y1=\"9\" x2=\"15\" y2=\"15\"/></svg><p>Failed to load alerts from Grafana</p></div>';\n\t\t\t\t});\n\t\t}\n\n\t\tfunction closeGrafanaImport() {\n\t\t\tdocument.getElementById('grafana-import-modal').close();\n\t\t}\n\n\t\tfunction updateCount(shown, total) {\n\t\t\tvar el = document.getElementById('grafana-alert-count');\n\t\t\tif (shown === total) {\n\t\t\t\tel.textContent = total + ' alert rule' + (total !== 1 ? 's' : '');\n\t\t\t} else {\n\t\t\t\tel.textContent = shown + ' of ' + total + ' rules';\n\t\t\t}\n\t\t}\n\n\t\tfunction filterAlerts() {\n\t\t\tvar q = document.getElementById('grafana-search').value.toLowerCase();\n\t\t\tvar filtered = _grafanaAlerts.filter(function(a) {\n\t\t\t\tif (a.title.toLowerCase().indexOf(q) >= 0) return true;\n\t\t\t\tif ((a.rule_group || '').toLowerCase().indexOf(q) >= 0) return true;\n\t\t\t\tif ((a.folder_uid || '').toLowerCase().indexOf(q) >= 0) return true;\n\t\t\t\tvar labels = a.labels || {};\n\t\t\t\treturn Object.keys(labels).some(function(k) {\n\t\t\t\t\treturn (k + '=' + labels[k]).toLowerCase().indexOf(q) >= 0;\n\t\t\t\t});\n\t\t\t});\n\t\t\trenderAlerts(filtered);\n\t\t\tupdateCount(filtered.length, _grafanaAlerts.length);\n\t\t}\n\n\t\tfunction renderAlerts(alerts) {\n\t\t\tvar container = document.getElementById('grafana-alert-list');\n\t\t\tif (alerts.length === 0) {\n\t\t\t\tcontainer.innerHTML =\n\t\t\t\t\t'<div class=\"import-empty\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"32\" height=\"32\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\"><circle cx=\"12\" cy=\"12\" r=\"10\"/><line x1=\"8\" y1=\"12\" x2=\"16\" y2=\"12\"/></svg><p>No matching alert rules</p></div>';\n\t\t\t\treturn;\n\t\t\t}\n\n\t\t\t// Group by rule_group\n\t\t\tvar groups = {};\n\t\t\tvar groupOrder = [];\n\t\t\tfor (var i = 0; i < alerts.length; i++) {\n\t\t\t\tvar g = alerts[i].rule_group || 'Ungrouped';\n\t\t\t\tif (!groups[g]) {\n\t\t\t\t\tgroups[g] = [];\n\t\t\t\t\tgroupOrder.push(g);\n\t\t\t\t}\n\t\t\t\tgroups[g].push(alerts[i]);\n\t\t\t}\n\n\t\t\tvar html = '';\n\t\t\tfor (var gi = 0; gi < groupOrder.length; gi++) {\n\t\t\t\tvar groupName = groupOrder[gi];\n\t\t\t\tvar items = groups[groupName];\n\t\t\t\thtml += '<div class=\"import-group\">';\n\t\t\t\thtml += '<div class=\"import-group-header\">' + escapeHtml(groupName) + '<span class=\"import-group-count\">' + items.length + '</span></div>';\n\t\t\t\tfor (var j = 0; j < items.length; j++) {\n\t\t\t\t\thtml += renderAlertItem(items[j]);\n\t\t\t\t}\n\t\t\t\thtml += '</div>';\n\t\t\t}\n\t\t\tcontainer.innerHTML = html;\n\t\t}\n\n\t\tfunction renderAlertItem(a) {\n\t\t\tvar labels = a.labels || {};\n\t\t\tvar severity = labels.severity || '';\n\t\t\tvar sevClass = severity === 'critical' ? 'tag-sev-critical' : (severity === 'warning' ? 'tag-sev-warning' : 'tag-sev-info');\n\t\t\tvar stateClass = a.state === 'firing' ? 'tag-alert-firing' : (a.state === 'pending' ? 'tag-alert-pending' : 'tag-alert-normal');\n\n\t\t\tvar html = '<div class=\"import-alert-item\" onclick=\\'selectAlert(' + JSON.stringify(JSON.stringify(a)) + ')\\'>';\n\n\t\t\t// Row 1: title + state\n\t\t\thtml += '<div class=\"import-alert-header\">';\n\t\t\thtml += '<span class=\"import-alert-title\">' + escapeHtml(a.title) + '</span>';\n\t\t\thtml += '<span class=\"tag ' + stateClass + '\">' + escapeHtml(a.state || 'normal') + '</span>';\n\t\t\thtml += '</div>';\n\n\t\t\t// Row 2: meta tags\n\t\t\thtml += '<div class=\"import-alert-meta\">';\n\t\t\tif (severity) {\n\t\t\t\thtml += '<span class=\"tag ' + sevClass + '\">' + escapeHtml(severity) + '</span>';\n\t\t\t}\n\t\t\tif (a['for']) {\n\t\t\t\thtml += '<span class=\"tag tag-timeout\">for: ' + escapeHtml(a['for']) + '</span>';\n\t\t\t}\n\t\t\tvar labelPairs = Object.keys(labels).filter(function(k) { return k !== 'severity'; });\n\t\t\tfor (var i = 0; i < labelPairs.length; i++) {\n\t\t\t\tvar k = labelPairs[i];\n\t\t\t\thtml += '<span class=\"tag tag-match\">' + escapeHtml(k) + '=' + escapeHtml(labels[k]) + '</span>';\n\t\t\t}\n\t\t\thtml += '</div>';\n\n\t\t\t// Row 3: summary\n\t\t\tif (a.annotations && a.annotations.summary) {\n\t\t\t\thtml += '<div class=\"import-alert-summary\">' + escapeHtml(a.annotations.summary) + '</div>';\n\t\t\t}\n\n\t\t\thtml += '</div>';\n\t\t\treturn html;\n\t\t}\n\n\t\tfunction selectAlert(alertJson) {\n\t\t\tvar a = JSON.parse(alertJson);\n\t\t\tvar labels = a.labels || {};\n\t\t\tvar lines = ['alertname=' + a.title];\n\t\t\tfor (var k in labels) {\n\t\t\t\tlines.push(k + '=' + labels[k]);\n\t\t\t}\n\t\t\tvar textarea = document.getElementById('match-labels');\n\t\t\ttextarea.value = lines.join('\\n');\n\t\t\tautoResize(textarea);\n\t\t\tcloseGrafanaImport();\n\t\t}\n\n\t\tfunction escapeHtml(s) {\n\t\t\tvar d = document.createElement('div');\n\t\t\td.appendChild(document.createTextNode(s));\n\t\t\treturn d.innerHTML;\n\t\t}\n\t</script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -993,12 +1006,12 @@ func toolPickerModal() templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var44 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var44 == nil {
-			templ_7745c5c3_Var44 = templ.NopComponent
+		templ_7745c5c3_Var45 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var45 == nil {
+			templ_7745c5c3_Var45 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 71, "<dialog id=\"tool-picker-modal\"><article class=\"import-modal-content\"><header><div class=\"import-modal-title\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 72, "<dialog id=\"tool-picker-modal\"><article class=\"import-modal-content\"><header><div class=\"import-modal-title\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1006,7 +1019,7 @@ func toolPickerModal() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 72, "<h3>Select MCP Tools</h3></div><button type=\"button\" class=\"close-modal\" onclick=\"closeToolPicker()\" aria-label=\"Close\">&times;</button></header><div class=\"import-modal-search\"><input type=\"text\" id=\"tool-search\" placeholder=\"Search by name or description...\" oninput=\"filterTools()\" autocomplete=\"off\"></div><div id=\"tool-picker-list\" class=\"import-alert-list\"><div class=\"import-loading\"><div class=\"import-spinner\"></div>Loading tools...</div></div><footer><span id=\"tool-picker-count\" class=\"import-count\"></span><div class=\"tool-picker-actions\"><button type=\"button\" class=\"outline secondary\" onclick=\"closeToolPicker()\">Cancel</button> <button type=\"button\" onclick=\"applySelectedTools()\">Apply</button></div></footer></article></dialog><script>\n\t\tvar _allTools = [];\n\t\tvar _selectedTools = new Set();\n\n\t\tfunction openToolPicker() {\n\t\t\tvar modal = document.getElementById('tool-picker-modal');\n\t\t\tmodal.showModal();\n\t\t\tdocument.getElementById('tool-search').value = '';\n\n\t\t\t// Pre-select tools already in the input\n\t\t\tvar current = document.getElementById('allowed-tools').value;\n\t\t\t_selectedTools = new Set();\n\t\t\tif (current.trim()) {\n\t\t\t\tcurrent.split(',').forEach(function(t) {\n\t\t\t\t\tvar name = t.trim();\n\t\t\t\t\tif (name) _selectedTools.add(name);\n\t\t\t\t});\n\t\t\t}\n\n\t\t\tdocument.getElementById('tool-picker-list').innerHTML =\n\t\t\t\t'<div class=\"import-loading\"><div class=\"import-spinner\"></div>Loading tools...</div>';\n\t\t\tfetch('/api/tools')\n\t\t\t\t.then(function(r) {\n\t\t\t\t\tif (!r.ok) throw new Error(r.statusText);\n\t\t\t\t\treturn r.json();\n\t\t\t\t})\n\t\t\t\t.then(function(tools) {\n\t\t\t\t\t_allTools = tools || [];\n\t\t\t\t\trenderTools(_allTools);\n\t\t\t\t\tupdateToolCount(_allTools.length, _allTools.length);\n\t\t\t\t})\n\t\t\t\t.catch(function(err) {\n\t\t\t\t\tdocument.getElementById('tool-picker-list').innerHTML =\n\t\t\t\t\t\t'<div class=\"import-empty\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"32\" height=\"32\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\"><circle cx=\"12\" cy=\"12\" r=\"10\"/><line x1=\"15\" y1=\"9\" x2=\"9\" y2=\"15\"/><line x1=\"9\" y1=\"9\" x2=\"15\" y2=\"15\"/></svg><p>Failed to load tools</p></div>';\n\t\t\t\t});\n\t\t}\n\n\t\tfunction closeToolPicker() {\n\t\t\tdocument.getElementById('tool-picker-modal').close();\n\t\t}\n\n\t\tfunction updateToolCount(shown, total) {\n\t\t\tvar sel = _selectedTools.size;\n\t\t\tvar el = document.getElementById('tool-picker-count');\n\t\t\tvar parts = [];\n\t\t\tif (shown === total) {\n\t\t\t\tparts.push(total + ' tool' + (total !== 1 ? 's' : ''));\n\t\t\t} else {\n\t\t\t\tparts.push(shown + ' of ' + total + ' tools');\n\t\t\t}\n\t\t\tif (sel > 0) parts.push(sel + ' selected');\n\t\t\tel.textContent = parts.join(' · ');\n\t\t}\n\n\t\tfunction filterTools() {\n\t\t\tvar q = document.getElementById('tool-search').value.toLowerCase();\n\t\t\tvar filtered = _allTools.filter(function(t) {\n\t\t\t\treturn t.name.toLowerCase().indexOf(q) >= 0 ||\n\t\t\t\t\t(t.description || '').toLowerCase().indexOf(q) >= 0;\n\t\t\t});\n\t\t\trenderTools(filtered);\n\t\t\tupdateToolCount(filtered.length, _allTools.length);\n\t\t}\n\n\t\tfunction renderTools(tools) {\n\t\t\tvar container = document.getElementById('tool-picker-list');\n\t\t\tif (tools.length === 0) {\n\t\t\t\tcontainer.innerHTML =\n\t\t\t\t\t'<div class=\"import-empty\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"32\" height=\"32\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\"><circle cx=\"12\" cy=\"12\" r=\"10\"/><line x1=\"8\" y1=\"12\" x2=\"16\" y2=\"12\"/></svg><p>No matching tools</p></div>';\n\t\t\t\treturn;\n\t\t\t}\n\n\t\t\tvar html = '';\n\t\t\tfor (var i = 0; i < tools.length; i++) {\n\t\t\t\tvar t = tools[i];\n\t\t\t\tvar checked = _selectedTools.has(t.name);\n\t\t\t\thtml += '<div class=\"tool-picker-item' + (checked ? ' selected' : '') + '\" onclick=\"toggleTool(this, \\'' + escapeAttr(t.name) + '\\')\">';\n\t\t\t\thtml += '<div class=\"tool-picker-header\">';\n\t\t\t\thtml += '<label class=\"tool-picker-check\"><input type=\"checkbox\"' + (checked ? ' checked' : '') + ' onclick=\"event.stopPropagation(); toggleTool(this.closest(\\'.tool-picker-item\\'), \\'' + escapeAttr(t.name) + '\\')\"/></label>';\n\t\t\t\thtml += '<span class=\"tool-picker-name\">' + escapeHtml(t.name) + '</span>';\n\t\t\t\thtml += '</div>';\n\t\t\t\tif (t.description) {\n\t\t\t\t\thtml += '<div class=\"tool-picker-desc\">' + escapeHtml(t.description) + '</div>';\n\t\t\t\t}\n\t\t\t\thtml += '</div>';\n\t\t\t}\n\t\t\tcontainer.innerHTML = html;\n\t\t}\n\n\t\tfunction toggleTool(el, name) {\n\t\t\tif (_selectedTools.has(name)) {\n\t\t\t\t_selectedTools.delete(name);\n\t\t\t\tel.classList.remove('selected');\n\t\t\t\tel.querySelector('input[type=checkbox]').checked = false;\n\t\t\t} else {\n\t\t\t\t_selectedTools.add(name);\n\t\t\t\tel.classList.add('selected');\n\t\t\t\tel.querySelector('input[type=checkbox]').checked = true;\n\t\t\t}\n\t\t\tupdateToolCount(\n\t\t\t\tdocument.querySelectorAll('#tool-picker-list .tool-picker-item').length,\n\t\t\t\t_allTools.length\n\t\t\t);\n\t\t}\n\n\t\tfunction applySelectedTools() {\n\t\t\tdocument.getElementById('allowed-tools').value = Array.from(_selectedTools).join(', ');\n\t\t\tcloseToolPicker();\n\t\t}\n\n\t\tfunction escapeAttr(s) {\n\t\t\treturn s.replace(/'/g, \"\\\\'\").replace(/\"/g, '&quot;');\n\t\t}\n\t</script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 73, "<h3>Select MCP Tools</h3></div><button type=\"button\" class=\"close-modal\" onclick=\"closeToolPicker()\" aria-label=\"Close\">&times;</button></header><div class=\"import-modal-search\"><input type=\"text\" id=\"tool-search\" placeholder=\"Search by name or description...\" oninput=\"filterTools()\" autocomplete=\"off\"></div><div id=\"tool-picker-list\" class=\"import-alert-list\"><div class=\"import-loading\"><div class=\"import-spinner\"></div>Loading tools...</div></div><footer><span id=\"tool-picker-count\" class=\"import-count\"></span><div class=\"tool-picker-actions\"><button type=\"button\" class=\"outline secondary\" onclick=\"closeToolPicker()\">Cancel</button> <button type=\"button\" onclick=\"applySelectedTools()\">Apply</button></div></footer></article></dialog><script>\n\t\tvar _allTools = [];\n\t\tvar _selectedTools = new Set();\n\n\t\tfunction openToolPicker() {\n\t\t\tvar modal = document.getElementById('tool-picker-modal');\n\t\t\tmodal.showModal();\n\t\t\tdocument.getElementById('tool-search').value = '';\n\n\t\t\t// Pre-select tools already in the input\n\t\t\tvar current = document.getElementById('allowed-tools').value;\n\t\t\t_selectedTools = new Set();\n\t\t\tif (current.trim()) {\n\t\t\t\tcurrent.split(',').forEach(function(t) {\n\t\t\t\t\tvar name = t.trim();\n\t\t\t\t\tif (name) _selectedTools.add(name);\n\t\t\t\t});\n\t\t\t}\n\n\t\t\tdocument.getElementById('tool-picker-list').innerHTML =\n\t\t\t\t'<div class=\"import-loading\"><div class=\"import-spinner\"></div>Loading tools...</div>';\n\t\t\tfetch('/api/tools')\n\t\t\t\t.then(function(r) {\n\t\t\t\t\tif (!r.ok) throw new Error(r.statusText);\n\t\t\t\t\treturn r.json();\n\t\t\t\t})\n\t\t\t\t.then(function(tools) {\n\t\t\t\t\t_allTools = tools || [];\n\t\t\t\t\trenderTools(_allTools);\n\t\t\t\t\tupdateToolCount(_allTools.length, _allTools.length);\n\t\t\t\t})\n\t\t\t\t.catch(function(err) {\n\t\t\t\t\tdocument.getElementById('tool-picker-list').innerHTML =\n\t\t\t\t\t\t'<div class=\"import-empty\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"32\" height=\"32\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\"><circle cx=\"12\" cy=\"12\" r=\"10\"/><line x1=\"15\" y1=\"9\" x2=\"9\" y2=\"15\"/><line x1=\"9\" y1=\"9\" x2=\"15\" y2=\"15\"/></svg><p>Failed to load tools</p></div>';\n\t\t\t\t});\n\t\t}\n\n\t\tfunction closeToolPicker() {\n\t\t\tdocument.getElementById('tool-picker-modal').close();\n\t\t}\n\n\t\tfunction updateToolCount(shown, total) {\n\t\t\tvar sel = _selectedTools.size;\n\t\t\tvar el = document.getElementById('tool-picker-count');\n\t\t\tvar parts = [];\n\t\t\tif (shown === total) {\n\t\t\t\tparts.push(total + ' tool' + (total !== 1 ? 's' : ''));\n\t\t\t} else {\n\t\t\t\tparts.push(shown + ' of ' + total + ' tools');\n\t\t\t}\n\t\t\tif (sel > 0) parts.push(sel + ' selected');\n\t\t\tel.textContent = parts.join(' · ');\n\t\t}\n\n\t\tfunction filterTools() {\n\t\t\tvar q = document.getElementById('tool-search').value.toLowerCase();\n\t\t\tvar filtered = _allTools.filter(function(t) {\n\t\t\t\treturn t.name.toLowerCase().indexOf(q) >= 0 ||\n\t\t\t\t\t(t.description || '').toLowerCase().indexOf(q) >= 0;\n\t\t\t});\n\t\t\trenderTools(filtered);\n\t\t\tupdateToolCount(filtered.length, _allTools.length);\n\t\t}\n\n\t\tfunction renderTools(tools) {\n\t\t\tvar container = document.getElementById('tool-picker-list');\n\t\t\tif (tools.length === 0) {\n\t\t\t\tcontainer.innerHTML =\n\t\t\t\t\t'<div class=\"import-empty\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"32\" height=\"32\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\"><circle cx=\"12\" cy=\"12\" r=\"10\"/><line x1=\"8\" y1=\"12\" x2=\"16\" y2=\"12\"/></svg><p>No matching tools</p></div>';\n\t\t\t\treturn;\n\t\t\t}\n\n\t\t\tvar html = '';\n\t\t\tfor (var i = 0; i < tools.length; i++) {\n\t\t\t\tvar t = tools[i];\n\t\t\t\tvar checked = _selectedTools.has(t.name);\n\t\t\t\thtml += '<div class=\"tool-picker-item' + (checked ? ' selected' : '') + '\" onclick=\"toggleTool(this, \\'' + escapeAttr(t.name) + '\\')\">';\n\t\t\t\thtml += '<div class=\"tool-picker-header\">';\n\t\t\t\thtml += '<label class=\"tool-picker-check\"><input type=\"checkbox\"' + (checked ? ' checked' : '') + ' onclick=\"event.stopPropagation(); toggleTool(this.closest(\\'.tool-picker-item\\'), \\'' + escapeAttr(t.name) + '\\')\"/></label>';\n\t\t\t\thtml += '<span class=\"tool-picker-name\">' + escapeHtml(t.name) + '</span>';\n\t\t\t\thtml += '</div>';\n\t\t\t\tif (t.description) {\n\t\t\t\t\thtml += '<div class=\"tool-picker-desc\">' + escapeHtml(t.description) + '</div>';\n\t\t\t\t}\n\t\t\t\thtml += '</div>';\n\t\t\t}\n\t\t\tcontainer.innerHTML = html;\n\t\t}\n\n\t\tfunction toggleTool(el, name) {\n\t\t\tif (_selectedTools.has(name)) {\n\t\t\t\t_selectedTools.delete(name);\n\t\t\t\tel.classList.remove('selected');\n\t\t\t\tel.querySelector('input[type=checkbox]').checked = false;\n\t\t\t} else {\n\t\t\t\t_selectedTools.add(name);\n\t\t\t\tel.classList.add('selected');\n\t\t\t\tel.querySelector('input[type=checkbox]').checked = true;\n\t\t\t}\n\t\t\tupdateToolCount(\n\t\t\t\tdocument.querySelectorAll('#tool-picker-list .tool-picker-item').length,\n\t\t\t\t_allTools.length\n\t\t\t);\n\t\t}\n\n\t\tfunction applySelectedTools() {\n\t\t\tdocument.getElementById('allowed-tools').value = Array.from(_selectedTools).join(', ');\n\t\t\tcloseToolPicker();\n\t\t}\n\n\t\tfunction escapeAttr(s) {\n\t\t\treturn s.replace(/'/g, \"\\\\'\").replace(/\"/g, '&quot;');\n\t\t}\n\t</script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1030,12 +1043,12 @@ func toolIcon() templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var45 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var45 == nil {
-			templ_7745c5c3_Var45 = templ.NopComponent
+		templ_7745c5c3_Var46 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var46 == nil {
+			templ_7745c5c3_Var46 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 73, "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z\"></path></svg>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 74, "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z\"></path></svg>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1059,12 +1072,12 @@ func grafanaIcon() templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var46 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var46 == nil {
-			templ_7745c5c3_Var46 = templ.NopComponent
+		templ_7745c5c3_Var47 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var47 == nil {
+			templ_7745c5c3_Var47 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 74, "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9\"></path> <path d=\"M10.3 21a1.94 1.94 0 0 0 3.4 0\"></path> <line x1=\"12\" y1=\"2\" x2=\"12\" y2=\"4\"></line></svg>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 75, "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9\"></path> <path d=\"M10.3 21a1.94 1.94 0 0 0 3.4 0\"></path> <line x1=\"12\" y1=\"2\" x2=\"12\" y2=\"4\"></line></svg>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1088,12 +1101,12 @@ func emptyIcon() templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var47 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var47 == nil {
-			templ_7745c5c3_Var47 = templ.NopComponent
+		templ_7745c5c3_Var48 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var48 == nil {
+			templ_7745c5c3_Var48 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 75, "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"64\" height=\"64\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z\"></path> <polyline points=\"14 2 14 8 20 8\"></polyline> <line x1=\"16\" y1=\"13\" x2=\"8\" y2=\"13\"></line> <line x1=\"16\" y1=\"17\" x2=\"8\" y2=\"17\"></line> <line x1=\"10\" y1=\"9\" x2=\"8\" y2=\"9\"></line></svg>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 76, "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"64\" height=\"64\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z\"></path> <polyline points=\"14 2 14 8 20 8\"></polyline> <line x1=\"16\" y1=\"13\" x2=\"8\" y2=\"13\"></line> <line x1=\"16\" y1=\"17\" x2=\"8\" y2=\"17\"></line> <line x1=\"10\" y1=\"9\" x2=\"8\" y2=\"9\"></line></svg>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

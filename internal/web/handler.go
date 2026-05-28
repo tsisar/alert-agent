@@ -51,6 +51,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /scenarios/new", h.newScenario)
 	mux.HandleFunc("POST /scenarios", h.createScenario)
 	mux.HandleFunc("GET /scenarios/{id}/edit", h.editScenario)
+	mux.HandleFunc("GET /scenarios/{id}/copy", h.copyScenario)
 	mux.HandleFunc("PUT /scenarios/{id}", h.updateScenario)
 	mux.HandleFunc("DELETE /scenarios/{id}", h.deleteScenario)
 
