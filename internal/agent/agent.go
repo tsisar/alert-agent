@@ -82,7 +82,7 @@ func (a *Agent) Run(ctx context.Context, payload *model.WebhookPayload, sc *scen
 	for i := 0; i < maxIterations; i++ {
 		if err := ctx.Err(); err != nil {
 			log.Debugf("[agent] context cancelled before iteration %d, finishing", i)
-			return a.timeoutFinish(ctx, prompts, messages)
+			return a.timeoutFinish(ctx, prompts, messages, images)
 		}
 
 		if a.llmCfg.ContextLimit > 0 && lastPromptTokens > 0 {
@@ -100,7 +100,7 @@ func (a *Agent) Run(ctx context.Context, payload *model.WebhookPayload, sc *scen
 		if err != nil {
 			if ctx.Err() != nil {
 				log.Debugf("[agent] LLM call failed due to timeout, finishing")
-				return a.timeoutFinish(context.WithoutCancel(ctx), prompts, messages)
+				return a.timeoutFinish(context.WithoutCancel(ctx), prompts, messages, images)
 			}
 			return nil, fmt.Errorf("chat completion (iteration %d): %w", i, err)
 		}
@@ -161,11 +161,11 @@ func (a *Agent) Run(ctx context.Context, payload *model.WebhookPayload, sc *scen
 	}
 
 	log.Warnf("agent reached max iterations (%d), forcing finish", maxIterations)
-	return a.timeoutFinish(ctx, prompts, messages)
+	return a.timeoutFinish(ctx, prompts, messages, images)
 }
 
 // timeoutFinish injects a "wrap up" message and does one final LLM call without tools.
-func (a *Agent) timeoutFinish(ctx context.Context, prompts *storage.PromptSet, messages []llm.Message) (*Result, error) {
+func (a *Agent) timeoutFinish(ctx context.Context, prompts *storage.PromptSet, messages []llm.Message, images [][]byte) (*Result, error) {
 	log.Debugf("[agent] timeout finish: injecting wrap-up message, total messages=%d", len(messages)+1)
 
 	messages = append(messages, llm.Message{
@@ -182,9 +182,9 @@ func (a *Agent) timeoutFinish(ctx context.Context, prompts *storage.PromptSet, m
 		return nil, fmt.Errorf("timeout finish call: %w", err)
 	}
 
-	log.Debugf("[agent] timeout finish report length: %d", len(resp.Content))
+	log.Debugf("[agent] timeout finish report length: %d, images=%d", len(resp.Content), len(images))
 	summary := a.summarize(ctx, prompts, resp.Content)
-	return &Result{Summary: summary, Report: resp.Content}, nil
+	return &Result{Summary: summary, Report: resp.Content, Images: images}, nil
 }
 
 func (a *Agent) toolsForScenario(sc *scenario.Scenario) ToolExecutor {
