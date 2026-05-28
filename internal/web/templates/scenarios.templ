@@ -161,6 +161,13 @@ templ ScenarioCard(s storage.Scenario) {
 			>
 				Edit
 			</a>
+			<a
+				href={ templ.SafeURL(fmt.Sprintf("/scenarios/%d/copy", s.ID)) }
+				role="button"
+				class="outline secondary"
+			>
+				Copy
+			</a>
 			<button
 				hx-delete={ fmt.Sprintf("/scenarios/%d", s.ID) }
 				hx-target={ fmt.Sprintf("#scenario-%d", s.ID) }
