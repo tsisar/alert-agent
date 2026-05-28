@@ -58,12 +58,22 @@ func countCatchAll(scenarios []storage.Scenario) int {
 	return n
 }
 
-func truncatePrompt(s string, max int) string {
+func promptPreview(s string) string {
 	s = strings.TrimSpace(s)
-	if len(s) <= max {
-		return s
+	truncated := false
+	if i := strings.IndexByte(s, '\n'); i >= 0 {
+		s = s[:i]
+		truncated = true
 	}
-	return s[:max] + "..."
+	const max = 140
+	if r := []rune(s); len(r) > max {
+		s = strings.TrimRight(string(r[:max]), " ")
+		truncated = true
+	}
+	if truncated {
+		return strings.TrimRight(s, " ") + "…"
+	}
+	return s
 }
 
 templ ScenariosPage(scenarios []storage.Scenario) {
@@ -151,7 +161,7 @@ templ ScenarioCard(s storage.Scenario) {
 			}
 		</div>
 		if s.Prompt != "" {
-			<div class="scenario-card-prompt">{ truncatePrompt(s.Prompt, 200) }</div>
+			<div class="scenario-card-prompt">{ promptPreview(s.Prompt) }</div>
 		}
 		<div class="scenario-card-actions">
 			<a
