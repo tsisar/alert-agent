@@ -1,6 +1,6 @@
 /* =============================================================
    Alert Agent — Material Design 3
-   Baseline seed: #6750A4 (canonical MD3 purple)
+   Baseline seed: #415F91 (canonical MD3 blue)
    Light + Dark schemes via [data-theme]
    ============================================================= */
 
@@ -8,15 +8,15 @@
 :root {
     color-scheme: light;
 
-    --md-sys-color-primary:                  #6750A4;
+    --md-sys-color-primary:                  #415F91;
     --md-sys-color-on-primary:               #FFFFFF;
-    --md-sys-color-primary-container:        #EADDFF;
-    --md-sys-color-on-primary-container:     #21005D;
+    --md-sys-color-primary-container:        #D6E3FF;
+    --md-sys-color-on-primary-container:     #001B3D;
 
-    --md-sys-color-secondary:                #625B71;
+    --md-sys-color-secondary:                #565F71;
     --md-sys-color-on-secondary:             #FFFFFF;
-    --md-sys-color-secondary-container:      #E8DEF8;
-    --md-sys-color-on-secondary-container:   #1D192B;
+    --md-sys-color-secondary-container:      #DAE2F9;
+    --md-sys-color-on-secondary-container:   #131C2B;
 
     --md-sys-color-tertiary:                 #7D5260;
     --md-sys-color-on-tertiary:              #FFFFFF;
@@ -36,26 +36,26 @@
     --md-sys-color-success-container:        #C2F0C9;
     --md-sys-color-on-success-container:     #002106;
 
-    --md-sys-color-background:               #FEF7FF;
-    --md-sys-color-on-background:            #1D1B20;
-    --md-sys-color-surface:                  #FEF7FF;
-    --md-sys-color-on-surface:               #1D1B20;
-    --md-sys-color-on-surface-variant:       #49454F;
+    --md-sys-color-background:               #F9F9FF;
+    --md-sys-color-on-background:            #1A1B20;
+    --md-sys-color-surface:                  #F9F9FF;
+    --md-sys-color-on-surface:               #1A1B20;
+    --md-sys-color-on-surface-variant:       #44474E;
 
-    --md-sys-color-surface-dim:              #DED8E1;
-    --md-sys-color-surface-bright:           #FEF7FF;
+    --md-sys-color-surface-dim:              #D9D9E0;
+    --md-sys-color-surface-bright:           #F9F9FF;
     --md-sys-color-surface-container-lowest: #FFFFFF;
-    --md-sys-color-surface-container-low:    #F7F2FA;
-    --md-sys-color-surface-container:        #F3EDF7;
-    --md-sys-color-surface-container-high:   #ECE6F0;
-    --md-sys-color-surface-container-highest:#E6E0E9;
+    --md-sys-color-surface-container-low:    #F3F3FA;
+    --md-sys-color-surface-container:        #EDEDF4;
+    --md-sys-color-surface-container-high:   #E7E8EE;
+    --md-sys-color-surface-container-highest:#E2E2E9;
 
-    --md-sys-color-outline:                  #79747E;
-    --md-sys-color-outline-variant:          #CAC4D0;
+    --md-sys-color-outline:                  #74777F;
+    --md-sys-color-outline-variant:          #C4C6D0;
 
-    --md-sys-color-inverse-surface:          #322F35;
-    --md-sys-color-inverse-on-surface:       #F5EFF7;
-    --md-sys-color-inverse-primary:          #D0BCFF;
+    --md-sys-color-inverse-surface:          #2F3036;
+    --md-sys-color-inverse-on-surface:       #F0F0F7;
+    --md-sys-color-inverse-primary:          #AAC7FF;
 
     --md-sys-color-scrim:                    #000000;
     --md-sys-color-shadow:                   #000000;
@@ -116,15 +116,15 @@
 [data-theme="dark"] {
     color-scheme: dark;
 
-    --md-sys-color-primary:                  #D0BCFF;
-    --md-sys-color-on-primary:               #381E72;
-    --md-sys-color-primary-container:        #4F378B;
-    --md-sys-color-on-primary-container:     #EADDFF;
+    --md-sys-color-primary:                  #AAC7FF;
+    --md-sys-color-on-primary:               #0A305F;
+    --md-sys-color-primary-container:        #284777;
+    --md-sys-color-on-primary-container:     #D6E3FF;
 
-    --md-sys-color-secondary:                #CCC2DC;
-    --md-sys-color-on-secondary:             #332D41;
-    --md-sys-color-secondary-container:      #4A4458;
-    --md-sys-color-on-secondary-container:   #E8DEF8;
+    --md-sys-color-secondary:                #BEC6DC;
+    --md-sys-color-on-secondary:             #283141;
+    --md-sys-color-secondary-container:      #3E4759;
+    --md-sys-color-on-secondary-container:   #DAE2F9;
 
     --md-sys-color-tertiary:                 #EFB8C8;
     --md-sys-color-on-tertiary:              #492532;
@@ -144,26 +144,26 @@
     --md-sys-color-success-container:        #00531B;
     --md-sys-color-on-success-container:     #C2F0C9;
 
-    --md-sys-color-background:               #141218;
-    --md-sys-color-on-background:            #E6E0E9;
-    --md-sys-color-surface:                  #141218;
-    --md-sys-color-on-surface:               #E6E0E9;
-    --md-sys-color-on-surface-variant:       #CAC4D0;
+    --md-sys-color-background:               #111318;
+    --md-sys-color-on-background:            #E2E2E9;
+    --md-sys-color-surface:                  #111318;
+    --md-sys-color-on-surface:               #E2E2E9;
+    --md-sys-color-on-surface-variant:       #C4C6D0;
 
-    --md-sys-color-surface-dim:              #141218;
-    --md-sys-color-surface-bright:           #3B383E;
-    --md-sys-color-surface-container-lowest: #0F0D13;
-    --md-sys-color-surface-container-low:    #1D1B20;
-    --md-sys-color-surface-container:        #211F26;
-    --md-sys-color-surface-container-high:   #2B2930;
-    --md-sys-color-surface-container-highest:#36343B;
+    --md-sys-color-surface-dim:              #111318;
+    --md-sys-color-surface-bright:           #37393E;
+    --md-sys-color-surface-container-lowest: #0C0E13;
+    --md-sys-color-surface-container-low:    #1A1B20;
+    --md-sys-color-surface-container:        #1E2025;
+    --md-sys-color-surface-container-high:   #282A2F;
+    --md-sys-color-surface-container-highest:#33353A;
 
-    --md-sys-color-outline:                  #938F99;
-    --md-sys-color-outline-variant:          #49454F;
+    --md-sys-color-outline:                  #8E9099;
+    --md-sys-color-outline-variant:          #44474E;
 
-    --md-sys-color-inverse-surface:          #E6E0E9;
-    --md-sys-color-inverse-on-surface:       #322F35;
-    --md-sys-color-inverse-primary:          #6750A4;
+    --md-sys-color-inverse-surface:          #E2E2E9;
+    --md-sys-color-inverse-on-surface:       #2F3036;
+    --md-sys-color-inverse-primary:          #415F91;
 
     --md-sys-elevation-1: 0 1px 2px rgba(0,0,0,0.30), 0 1px 3px 1px rgba(0,0,0,0.15);
     --md-sys-elevation-2: 0 1px 2px rgba(0,0,0,0.30), 0 2px 6px 2px rgba(0,0,0,0.15);
