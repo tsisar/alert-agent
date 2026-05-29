@@ -7,6 +7,45 @@ import (
 	"github.com/tsisar/alert-agent/internal/llm"
 )
 
+func TestConvertMessages_ThinkingBlocksComeFirst(t *testing.T) {
+	messages := []llm.Message{
+		{Role: llm.RoleUser, Content: "investigate"},
+		{
+			Role: llm.RoleAssistant,
+			Thinking: []llm.ThinkingBlock{
+				{Text: "let me check the dashboard", Signature: "sig-abc"},
+			},
+			ToolCalls: []llm.ToolCall{{ID: "call_1", Name: "query", Arguments: `{}`}},
+		},
+	}
+
+	out, err := convertMessages(messages)
+	if err != nil {
+		t.Fatalf("convertMessages: %v", err)
+	}
+	if len(out) != 2 {
+		t.Fatalf("expected 2 messages, got %d", len(out))
+	}
+
+	assistant := out[1]
+	if len(assistant.Content) != 2 {
+		t.Fatalf("assistant blocks = %d, want 2 (thinking + tool_use)", len(assistant.Content))
+	}
+
+	// The thinking block must be first, with its signature preserved.
+	thinking := assistant.Content[0].OfThinking
+	if thinking == nil {
+		t.Fatal("first assistant block is not a thinking block")
+	}
+	if thinking.Thinking != "let me check the dashboard" || thinking.Signature != "sig-abc" {
+		t.Errorf("thinking block not preserved: %+v", thinking)
+	}
+
+	if assistant.Content[1].OfToolUse == nil {
+		t.Error("second assistant block is not a tool_use block")
+	}
+}
+
 func TestConvertMessages_CoalescesToolResults(t *testing.T) {
 	messages := []llm.Message{
 		{Role: llm.RoleUser, Content: "investigate"},

@@ -128,7 +128,9 @@ func (a *Agent) Run(ctx context.Context, payload *model.WebhookPayload, sc *scen
 
 		messages = append(messages, llm.Message{
 			Role:      llm.RoleAssistant,
+			Content:   resp.Content,
 			ToolCalls: toolCalls,
+			Thinking:  resp.Thinking,
 		})
 
 		for _, tc := range toolCalls {

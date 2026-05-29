@@ -14,6 +14,7 @@ llm:
   base_url: ""
   model: ""                   # empty = provider default (openai→gpt-4o, anthropic→claude-opus-4-8)
   max_tokens: 4096
+  reasoning_effort: ""        # empty = off. low|medium|high (openai reasoning models / anthropic adaptive thinking)
   context_limit: 0            # Model context window size (0 = no limit)
 
 telegram:

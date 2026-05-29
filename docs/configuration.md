@@ -27,6 +27,7 @@ llm:
   base_url: ""               # Custom endpoint (for compatible APIs)
   model: ""                  # Model (empty = provider default: openai→gpt-4o, anthropic→claude-opus-4-8)
   max_tokens: 4096           # Token limit per response
+  reasoning_effort: ""       # Reasoning/thinking effort: empty=off, low|medium|high (see note below)
   summary_max_tokens: 1024   # Token limit for summary/notify calls (increase for reasoning models)
   context_limit: 0           # Model context window (0 = no limit)
 
@@ -56,6 +57,7 @@ All parameters can be overridden via env vars. A `.env` file is loaded automatic
 | `LLM_BASE_URL` or `OPENAI_BASE_URL` | `llm.base_url`             | —                | Custom base URL                                               |
 | `LLM_MODEL`                         | `llm.model`                | provider default | Model name (empty → `gpt-4o` / `claude-opus-4-8`)             |
 | `LLM_MAX_TOKENS`                    | `llm.max_tokens`           | `32768`          | Max tokens per response                                       |
+| `LLM_REASONING_EFFORT`              | `llm.reasoning_effort`     | — (off)          | Reasoning/thinking effort: `low`, `medium`, `high` (see note) |
 | `LLM_SUMMARY_MAX_TOKENS`            | `llm.summary_max_tokens`   | `4096`           | Max tokens for summary/notify (increase for reasoning models) |
 | `LLM_CONTEXT_LIMIT`                 | `llm.context_limit`        | `0`              | Model context window (0 = no limit)                           |
 | `MCP_CONFIG_PATH`                   | `mcp.config_path`          | `.mcp.json`      | Path to MCP config                                            |
@@ -73,6 +75,18 @@ All parameters can be overridden via env vars. A `.env` file is loaded automatic
 | `LOG_SHOW_CALLER`                   | —                          | `true`           | Include caller file:line in log lines                         |
 
 Priority: env var > config.yaml > default.
+
+### Reasoning / thinking (`reasoning_effort`)
+
+Empty disables it. A non-empty value (`low`, `medium`, `high`) enables the
+provider's reasoning mode:
+
+- **OpenAI** — sent as the `reasoning_effort` request parameter. Only valid for
+  reasoning models (`o`-series, `gpt-5`); enabling it on a non-reasoning model
+  such as `gpt-4o` will error.
+- **Anthropic** — enables adaptive thinking with the given `output_config.effort`
+  (Claude also accepts `xhigh` and `max`). Reasoning blocks are preserved across
+  the tool-use loop automatically.
 
 ## MCP Configuration
 

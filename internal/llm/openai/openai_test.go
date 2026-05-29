@@ -72,7 +72,7 @@ func TestChatCompletion_SimpleResponse(t *testing.T) {
 		_ = json.NewEncoder(w).Encode(resp)
 	})
 
-	provider := New("test-key", ts.URL, "gpt-4o")
+	provider := New("test-key", ts.URL, "gpt-4o", "")
 
 	resp, err := provider.ChatCompletion(context.Background(), &llm.ChatRequest{
 		SystemPrompt: "You are an alert investigator.",
@@ -127,7 +127,7 @@ func TestChatCompletion_WithToolCalls(t *testing.T) {
 		_ = json.NewEncoder(w).Encode(resp)
 	})
 
-	provider := New("test-key", ts.URL, "gpt-4o")
+	provider := New("test-key", ts.URL, "gpt-4o", "")
 
 	resp, err := provider.ChatCompletion(context.Background(), &llm.ChatRequest{
 		Messages: []llm.Message{
@@ -218,7 +218,7 @@ func TestChatCompletion_ToolResultRoundTrip(t *testing.T) {
 		_ = json.NewEncoder(w).Encode(resp)
 	})
 
-	provider := New("test-key", ts.URL, "gpt-4o")
+	provider := New("test-key", ts.URL, "gpt-4o", "")
 	ctx := context.Background()
 
 	// First call: model requests tool use
@@ -270,7 +270,7 @@ func TestChatCompletion_EmptyChoices(t *testing.T) {
 		_ = json.NewEncoder(w).Encode(resp)
 	})
 
-	provider := New("test-key", ts.URL, "gpt-4o")
+	provider := New("test-key", ts.URL, "gpt-4o", "")
 
 	_, err := provider.ChatCompletion(context.Background(), &llm.ChatRequest{
 		Messages: []llm.Message{
@@ -288,7 +288,7 @@ func TestChatCompletion_ServerError(t *testing.T) {
 		_, _ = w.Write([]byte(`{"error":{"message":"internal error","type":"server_error"}}`))
 	})
 
-	provider := New("test-key", ts.URL, "gpt-4o")
+	provider := New("test-key", ts.URL, "gpt-4o", "")
 
 	_, err := provider.ChatCompletion(context.Background(), &llm.ChatRequest{
 		Messages: []llm.Message{
@@ -322,7 +322,7 @@ func TestChatCompletion_ModelOverride(t *testing.T) {
 		_ = json.NewEncoder(w).Encode(resp)
 	})
 
-	provider := New("test-key", ts.URL, "gpt-4o")
+	provider := New("test-key", ts.URL, "gpt-4o", "")
 
 	_, err := provider.ChatCompletion(context.Background(), &llm.ChatRequest{
 		Model: "gpt-4o-mini",

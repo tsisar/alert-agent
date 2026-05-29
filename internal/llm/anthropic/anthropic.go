@@ -20,12 +20,15 @@ const defaultModel = string(anthropic.ModelClaudeOpus4_8)
 const fallbackMaxTokens = 16000
 
 type Provider struct {
-	client *anthropic.Client
-	model  string
+	client          *anthropic.Client
+	model           string
+	reasoningEffort string
 }
 
 // New creates a Claude provider. An empty model falls back to defaultModel.
-func New(apiKey, baseURL, model string) *Provider {
+// A non-empty reasoningEffort (low|medium|high|xhigh|max) enables adaptive
+// thinking with that effort level.
+func New(apiKey, baseURL, model, reasoningEffort string) *Provider {
 	if model == "" {
 		model = defaultModel
 	}
@@ -40,8 +43,9 @@ func New(apiKey, baseURL, model string) *Provider {
 	client := anthropic.NewClient(opts...)
 
 	return &Provider{
-		client: &client,
-		model:  model,
+		client:          &client,
+		model:           model,
+		reasoningEffort: reasoningEffort,
 	}
 }
 
@@ -71,6 +75,14 @@ func (p *Provider) ChatCompletion(ctx context.Context, req *llm.ChatRequest) (*l
 	}
 	if len(req.Tools) > 0 {
 		params.Tools = convertTools(req.Tools)
+	}
+	if p.reasoningEffort != "" {
+		params.Thinking = anthropic.ThinkingConfigParamUnion{
+			OfAdaptive: &anthropic.ThinkingConfigAdaptiveParam{},
+		}
+		params.OutputConfig = anthropic.OutputConfigParam{
+			Effort: anthropic.OutputConfigEffort(p.reasoningEffort),
+		}
 	}
 
 	if reqJSON, err := json.Marshal(params); err == nil {
@@ -105,6 +117,16 @@ func (p *Provider) ChatCompletion(ctx context.Context, req *llm.ChatRequest) (*l
 				Name:      variant.Name,
 				Arguments: string(variant.Input),
 			})
+		case anthropic.ThinkingBlock:
+			resp.Thinking = append(resp.Thinking, llm.ThinkingBlock{
+				Text:      variant.Thinking,
+				Signature: variant.Signature,
+			})
+		case anthropic.RedactedThinkingBlock:
+			resp.Thinking = append(resp.Thinking, llm.ThinkingBlock{
+				Redacted: true,
+				Data:     variant.Data,
+			})
 		}
 	}
 
@@ -131,6 +153,20 @@ func convertMessages(messages []llm.Message) ([]anthropic.MessageParam, error) {
 
 		case llm.RoleAssistant:
 			var blocks []anthropic.ContentBlockParamUnion
+			// Thinking blocks must come first: when thinking is enabled the
+			// assistant turn that calls tools has to start with them, with
+			// their signatures preserved, or the API rejects the next request.
+			for _, tb := range msg.Thinking {
+				if tb.Redacted {
+					blocks = append(blocks, anthropic.ContentBlockParamUnion{
+						OfRedactedThinking: &anthropic.RedactedThinkingBlockParam{Data: tb.Data},
+					})
+				} else {
+					blocks = append(blocks, anthropic.ContentBlockParamUnion{
+						OfThinking: &anthropic.ThinkingBlockParam{Thinking: tb.Text, Signature: tb.Signature},
+					})
+				}
+			}
 			if msg.Content != "" {
 				blocks = append(blocks, anthropic.NewTextBlock(msg.Content))
 			}

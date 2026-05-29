@@ -27,10 +27,11 @@ type LLMConfig struct {
 	Provider       string `mapstructure:"provider"`
 	APIKey         string `mapstructure:"api_key"`
 	BaseURL        string `mapstructure:"base_url"`
-	Model          string `mapstructure:"model"`
-	MaxTokens      int    `mapstructure:"max_tokens"`
-	SummaryMaxToks int    `mapstructure:"summary_max_tokens"`
-	ContextLimit   int    `mapstructure:"context_limit"`
+	Model           string `mapstructure:"model"`
+	MaxTokens       int    `mapstructure:"max_tokens"`
+	SummaryMaxToks  int    `mapstructure:"summary_max_tokens"`
+	ContextLimit    int    `mapstructure:"context_limit"`
+	ReasoningEffort string `mapstructure:"reasoning_effort"`
 }
 
 type MCPConfig struct {
@@ -70,6 +71,7 @@ func Load(path string) (Config, error) {
 	v.SetDefault("llm.max_tokens", 32768)
 	v.SetDefault("llm.summary_max_tokens", 4096)
 	v.SetDefault("llm.context_limit", 0)
+	v.SetDefault("llm.reasoning_effort", "")
 	v.SetDefault("alert_cooldown", "48h")
 
 	if path != "" {
@@ -100,6 +102,7 @@ func Load(path string) (Config, error) {
 	_ = v.BindEnv("llm.max_tokens", "LLM_MAX_TOKENS")
 	_ = v.BindEnv("llm.summary_max_tokens", "LLM_SUMMARY_MAX_TOKENS")
 	_ = v.BindEnv("llm.context_limit", "LLM_CONTEXT_LIMIT")
+	_ = v.BindEnv("llm.reasoning_effort", "LLM_REASONING_EFFORT")
 	v.SetDefault("mcp.config_path", ".mcp.json")
 	v.SetDefault("database.driver", "sqlite")
 	v.SetDefault("database.dsn", "alert-agent.db")
