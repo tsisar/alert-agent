@@ -71,10 +71,19 @@ func (p *Provider) ChatCompletion(ctx context.Context, req *llm.ChatRequest) (*l
 		Messages:  messages,
 	}
 	if req.SystemPrompt != "" {
-		params.System = []anthropic.TextBlockParam{{Text: req.SystemPrompt}}
+		// Cache tools + system together: render order is tools → system, so a
+		// breakpoint on the system block caches both. They are stable across
+		// every iteration of the tool-use loop and across alerts (5m TTL).
+		params.System = []anthropic.TextBlockParam{{
+			Text:         req.SystemPrompt,
+			CacheControl: anthropic.NewCacheControlEphemeralParam(),
+		}}
 	}
 	if len(req.Tools) > 0 {
 		params.Tools = convertTools(req.Tools)
+		// Cache the conversation prefix so each loop iteration re-reads the
+		// prior turns instead of reprocessing them at full price.
+		cacheLastMessage(params.Messages)
 	}
 	if p.reasoningEffort != "" {
 		params.Thinking = anthropic.ThinkingConfigParamUnion{
@@ -249,4 +258,27 @@ func mapStopReason(r anthropic.StopReason) llm.FinishReason {
 		return llm.FinishReasonToolCall
 	}
 	return llm.FinishReasonStop
+}
+
+// cacheLastMessage sets an ephemeral cache breakpoint on the final content
+// block of the last message, so the whole conversation prefix up to that point
+// is served from cache on the next request.
+func cacheLastMessage(msgs []anthropic.MessageParam) {
+	if len(msgs) == 0 {
+		return
+	}
+	last := &msgs[len(msgs)-1]
+	if len(last.Content) == 0 {
+		return
+	}
+	block := &last.Content[len(last.Content)-1]
+	cc := anthropic.NewCacheControlEphemeralParam()
+	switch {
+	case block.OfText != nil:
+		block.OfText.CacheControl = cc
+	case block.OfToolResult != nil:
+		block.OfToolResult.CacheControl = cc
+	case block.OfToolUse != nil:
+		block.OfToolUse.CacheControl = cc
+	}
 }
