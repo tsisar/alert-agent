@@ -78,9 +78,9 @@ var serveCmd = &cobra.Command{
 		var provider llm.Provider
 		switch strings.ToLower(cfg.LLM.Provider) {
 		case "anthropic", "claude":
-			provider = anthropic.New(cfg.LLM.APIKey, cfg.LLM.BaseURL, cfg.LLM.Model)
+			provider = anthropic.New(cfg.LLM.APIKey, cfg.LLM.BaseURL, cfg.LLM.Model, cfg.LLM.ReasoningEffort)
 		case "openai", "":
-			provider = openai.New(cfg.LLM.APIKey, cfg.LLM.BaseURL, cfg.LLM.Model)
+			provider = openai.New(cfg.LLM.APIKey, cfg.LLM.BaseURL, cfg.LLM.Model, cfg.LLM.ReasoningEffort)
 		default:
 			return fmt.Errorf("unsupported llm provider %q (want \"openai\" or \"anthropic\")", cfg.LLM.Provider)
 		}

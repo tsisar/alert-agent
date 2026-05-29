@@ -12,11 +12,12 @@ import (
 )
 
 type Provider struct {
-	client *openai.Client
-	model  string
+	client          *openai.Client
+	model           string
+	reasoningEffort string
 }
 
-func New(apiKey, baseURL, model string) *Provider {
+func New(apiKey, baseURL, model, reasoningEffort string) *Provider {
 	if model == "" {
 		model = "gpt-4o"
 	}
@@ -31,8 +32,9 @@ func New(apiKey, baseURL, model string) *Provider {
 	client := openai.NewClient(opts...)
 
 	return &Provider{
-		client: &client,
-		model:  model,
+		client:          &client,
+		model:           model,
+		reasoningEffort: reasoningEffort,
 	}
 }
 
@@ -58,6 +60,12 @@ func (p *Provider) ChatCompletion(ctx context.Context, req *llm.ChatRequest) (*l
 
 	if req.MaxTokens > 0 {
 		params.MaxCompletionTokens = openai.Int(int64(req.MaxTokens))
+	}
+
+	// reasoning_effort is only valid for reasoning models (o-series, gpt-5);
+	// send it only when configured so non-reasoning models keep working.
+	if p.reasoningEffort != "" {
+		params.ReasoningEffort = openai.ReasoningEffort(p.reasoningEffort)
 	}
 
 	// Trace: log full request
