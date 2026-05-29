@@ -17,6 +17,10 @@ type Provider struct {
 }
 
 func New(apiKey, baseURL, model string) *Provider {
+	if model == "" {
+		model = "gpt-4o"
+	}
+
 	opts := []option.RequestOption{
 		option.WithAPIKey(apiKey),
 	}

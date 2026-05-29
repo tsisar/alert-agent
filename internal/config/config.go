@@ -64,7 +64,9 @@ func Load(path string) (Config, error) {
 
 	v.SetDefault("http.addr", ":8080")
 	v.SetDefault("llm.provider", "openai")
-	v.SetDefault("llm.model", "gpt-4o")
+	// Empty model lets each provider apply its own default
+	// (openai → gpt-4o, anthropic → claude-opus-4-8).
+	v.SetDefault("llm.model", "")
 	v.SetDefault("llm.max_tokens", 32768)
 	v.SetDefault("llm.summary_max_tokens", 4096)
 	v.SetDefault("llm.context_limit", 0)
