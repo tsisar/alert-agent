@@ -1,11 +1,35 @@
 package anthropic
 
 import (
+	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/tsisar/alert-agent/internal/llm"
 )
+
+func TestCacheLastMessage(t *testing.T) {
+	msgs := []anthropic.MessageParam{
+		anthropic.NewUserMessage(anthropic.NewTextBlock("first turn")),
+		anthropic.NewUserMessage(
+			anthropic.NewToolResultBlock("call_1", "result a", false),
+			anthropic.NewToolResultBlock("call_2", "result b", false),
+		),
+	}
+
+	cacheLastMessage(msgs)
+
+	last, _ := json.Marshal(msgs[len(msgs)-1])
+	if !strings.Contains(string(last), "cache_control") {
+		t.Errorf("expected cache_control on the last message, got %s", last)
+	}
+
+	first, _ := json.Marshal(msgs[0])
+	if strings.Contains(string(first), "cache_control") {
+		t.Errorf("earlier messages should not carry a cache breakpoint, got %s", first)
+	}
+}
 
 func TestConvertMessages_ThinkingBlocksComeFirst(t *testing.T) {
 	messages := []llm.Message{
