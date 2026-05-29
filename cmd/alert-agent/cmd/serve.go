@@ -5,12 +5,15 @@ import (
 	"fmt"
 	"net/http"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/redis/go-redis/v9"
 	"github.com/spf13/cobra"
 	"github.com/tsisar/alert-agent/internal/agent"
+	"github.com/tsisar/alert-agent/internal/llm"
+	"github.com/tsisar/alert-agent/internal/llm/anthropic"
 	"github.com/tsisar/alert-agent/internal/llm/openai"
 	"github.com/tsisar/alert-agent/internal/mcp"
 	"github.com/tsisar/alert-agent/internal/notify"
@@ -72,8 +75,16 @@ var serveCmd = &cobra.Command{
 		warnStaleToolFilters(scenarioRepo, mcpMgr)
 
 		// Create LLM provider
-		provider := openai.New(cfg.LLM.APIKey, cfg.LLM.BaseURL, cfg.LLM.Model)
-		log.Infof("LLM provider initialized: model=%s", cfg.LLM.Model)
+		var provider llm.Provider
+		switch strings.ToLower(cfg.LLM.Provider) {
+		case "anthropic", "claude":
+			provider = anthropic.New(cfg.LLM.APIKey, cfg.LLM.BaseURL, cfg.LLM.Model)
+		case "openai", "":
+			provider = openai.New(cfg.LLM.APIKey, cfg.LLM.BaseURL, cfg.LLM.Model)
+		default:
+			return fmt.Errorf("unsupported llm provider %q (want \"openai\" or \"anthropic\")", cfg.LLM.Provider)
+		}
+		log.Infof("LLM provider initialized: provider=%s model=%s", cfg.LLM.Provider, cfg.LLM.Model)
 
 		// Create agent
 		ag := agent.New(provider, mcpMgr, cfg.LLM, promptRepo)

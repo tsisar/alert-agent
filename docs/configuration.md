@@ -22,10 +22,10 @@ database:
   dsn: "./alert-agent.db"    # File path (sqlite) or connection string (pg/mysql)
 
 llm:
-  provider: "openai"         # LLM provider (currently only openai)
+  provider: "openai"         # LLM provider: openai | anthropic
   api_key: ""                # API key (prefer env var)
   base_url: ""               # Custom endpoint (for compatible APIs)
-  model: "gpt-4o"            # Model
+  model: ""                  # Model (empty = provider default: openai→gpt-4o, anthropic→claude-opus-4-8)
   max_tokens: 4096           # Token limit per response
   summary_max_tokens: 1024   # Token limit for summary/notify calls (increase for reasoning models)
   context_limit: 0           # Model context window (0 = no limit)
@@ -51,10 +51,10 @@ All parameters can be overridden via env vars. A `.env` file is loaded automatic
 | Env var                             | Config key                 | Default          | Description                                                   |
 |-------------------------------------|----------------------------|------------------|---------------------------------------------------------------|
 | `HTTP_ADDR`                         | `http.addr`                | `:8080`          | Server address                                                |
-| `LLM_PROVIDER`                      | `llm.provider`             | `openai`         | LLM provider                                                  |
+| `LLM_PROVIDER`                      | `llm.provider`             | `openai`         | LLM provider: `openai` or `anthropic`                         |
 | `LLM_API_KEY` or `OPENAI_API_KEY`   | `llm.api_key`              | —                | LLM API key                                                   |
 | `LLM_BASE_URL` or `OPENAI_BASE_URL` | `llm.base_url`             | —                | Custom base URL                                               |
-| `LLM_MODEL`                         | `llm.model`                | `gpt-4o`         | Model name                                                    |
+| `LLM_MODEL`                         | `llm.model`                | provider default | Model name (empty → `gpt-4o` / `claude-opus-4-8`)             |
 | `LLM_MAX_TOKENS`                    | `llm.max_tokens`           | `32768`          | Max tokens per response                                       |
 | `LLM_SUMMARY_MAX_TOKENS`            | `llm.summary_max_tokens`   | `4096`           | Max tokens for summary/notify (increase for reasoning models) |
 | `LLM_CONTEXT_LIMIT`                 | `llm.context_limit`        | `0`              | Model context window (0 = no limit)                           |
