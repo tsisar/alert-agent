@@ -160,13 +160,15 @@ func (h *Handler) deleteScenario(w http.ResponseWriter, r *http.Request) {
 }
 
 type exportScenario struct {
-	Name     string            `yaml:"name"`
-	Match    map[string]string `yaml:"match"`
-	Prompt   string            `yaml:"prompt"`
-	Tools    []string          `yaml:"tools,omitempty"`
-	Channels *exportChannels   `yaml:"channels,omitempty"`
-	Timeout  string            `yaml:"timeout"`
-	Priority string            `yaml:"priority"`
+	Name string `yaml:"name"`
+	// nolint:tagliatelle
+	OrderIndex int               `yaml:"order_index"`
+	Match      map[string]string `yaml:"match"`
+	Prompt     string            `yaml:"prompt"`
+	Tools      []string          `yaml:"tools,omitempty"`
+	Channels   *exportChannels   `yaml:"channels,omitempty"`
+	Timeout    string            `yaml:"timeout"`
+	Priority   string            `yaml:"priority"`
 	// nolint:tagliatelle
 	SendImages bool `yaml:"send_images,omitempty"`
 }
@@ -192,6 +194,7 @@ func (h *Handler) exportScenarios(w http.ResponseWriter, r *http.Request) {
 	for i, s := range scenarios {
 		es := exportScenario{
 			Name:       s.Name,
+			OrderIndex: s.OrderIndex,
 			Match:      map[string]string(s.Match),
 			Prompt:     s.Prompt,
 			Timeout:    s.Timeout,
@@ -248,6 +251,7 @@ func (h *Handler) importScenarios(w http.ResponseWriter, r *http.Request) {
 
 		s := &storage.Scenario{
 			Name:       es.Name,
+			OrderIndex: es.OrderIndex,
 			Match:      storage.JSONMap(es.Match),
 			Prompt:     es.Prompt,
 			Tools:      storage.JSONStringSlice(es.Tools),
