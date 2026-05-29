@@ -68,11 +68,13 @@ Log aggregation and querying. Used by the `query_loki_logs`, `query_loki_pattern
 
 ### LLM Provider
 
-An OpenAI-compatible API for the agent to operate.
+An LLM API for the agent to operate.
 
 - Configured via the `llm:` section in `config.yaml`
-- Variable: `LLM_API_KEY`
-- Any OpenAI-compatible provider is supported (OpenAI, Azure OpenAI, vLLM, Ollama with OpenAI API)
+- Variables: `LLM_PROVIDER` (`openai` | `anthropic`), `LLM_API_KEY`
+- **OpenAI** (`provider: openai`) — OpenAI itself or any OpenAI-compatible
+  endpoint via `base_url` (Azure OpenAI, vLLM, Ollama with OpenAI API)
+- **Anthropic** (`provider: anthropic`) — Claude models via the Messages API
 
 ## Optional
 
@@ -144,7 +146,7 @@ Automated analysis and investigation. Used by the `get_sift_investigation`, `fin
 For basic alert investigation with metrics, logs, and screenshots:
 
 ```
-Grafana + Image Renderer + MCP Grafana + Prometheus + Loki + LLM Provider + Telegram Bot
+Grafana + Image Renderer + MCP Grafana + Prometheus + Loki + LLM Provider (OpenAI or Anthropic) + Telegram Bot
 ```
 
 ## Service Relationships
