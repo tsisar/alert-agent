@@ -3,7 +3,7 @@
 ## Overview
 
 Alert Agent is a Go service that receives alerts from Grafana Alertmanager via webhook,
-autonomously investigates them using an LLM (OpenAI-compatible) and Grafana MCP tools,
+autonomously investigates them using an LLM (OpenAI or Anthropic) and Grafana MCP tools,
 and sends a structured report with screenshots to Telegram and Slack.
 
 Scenarios (matching rules + LLM prompts), notification prompts, and dedup/queue state are
@@ -38,7 +38,7 @@ Grafana Alertmanager
 │             Agent                │
 │  1. Build prompts (system +      │
 │     scenario + alert + budget)   │
-│  2. Tool-use loop (max 20 iter)  │◄────── LLM Provider (OpenAI API)
+│  2. Tool-use loop (max 20 iter)  │◄────── LLM Provider (OpenAI / Anthropic)
 │  3. Trim context as it grows     │
 │  4. Collect images from tools    │
 │  5. Summarize → Result           │──────► MCP Manager
@@ -141,6 +141,7 @@ internal/
     tools.go                FilteredExecutor (scenario allowlist)
   llm/                      LLM Provider interfaces
     openai/                 OpenAI-compatible implementation
+    anthropic/              Anthropic (Claude) Messages API implementation
   mcp/                      MCP client and server manager
     client.go               SSE client per server, namespaced tool names
     config.go               .mcp.json loading
@@ -169,8 +170,10 @@ type Provider interface {
 ```
 
 One call = one request to the LLM. The tool-use loop is orchestrated externally
-(in the Agent), not inside the provider. This makes it easy to swap OpenAI for
-another LLM as long as it supports OpenAI's tool-use protocol.
+(in the Agent), not inside the provider. Two providers implement this interface —
+`openai` and `anthropic` — and each maps the agent's provider-agnostic messages,
+tools, and thinking blocks onto its own API. Adding another provider means
+implementing this single method.
 
 ### `agent.ToolExecutor`
 

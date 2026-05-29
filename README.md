@@ -131,7 +131,7 @@ The webhook always responds immediately with `202 Accepted`. Investigation runs 
 
 - Go 1.25+
 - [MCP Grafana](https://github.com/grafana/mcp-grafana) server (SSE endpoint)
-- LLM API key (OpenAI or any OpenAI-compatible provider)
+- LLM API key (OpenAI / any OpenAI-compatible provider, or Anthropic)
 - Telegram bot token and/or Slack bot token (optional but recommended)
 
 ### Setup
@@ -284,9 +284,10 @@ database:
   dsn: "alert-agent.db"
 
 llm:
-  provider: "openai"
-  model: "gpt-4o"
+  provider: "openai"            # openai | anthropic
+  model: ""                     # empty = provider default (openai→gpt-4o, anthropic→claude-opus-4-8)
   max_tokens: 32768             # tool-use loop budget
+  reasoning_effort: ""          # empty = off; low | medium | high
   summary_max_tokens: 4096      # final summary call
   context_limit: 0              # model context window (0 = no trimming)
 
@@ -304,9 +305,10 @@ redis:
 alert_cooldown: "48h"
 ```
 
-Common environment variables: `LLM_API_KEY`, `LLM_MODEL`, `LLM_BASE_URL`,
-`TELEGRAM_BOT_TOKEN`, `SLACK_BOT_TOKEN`, `REDIS_URL`, `ALERT_COOLDOWN`,
-`DATABASE_DRIVER`, `DATABASE_DSN`, `MCP_CONFIG_PATH`, `LOG_LEVEL`.
+Common environment variables: `LLM_PROVIDER`, `LLM_API_KEY`, `LLM_MODEL`,
+`LLM_BASE_URL`, `LLM_REASONING_EFFORT`, `TELEGRAM_BOT_TOKEN`, `SLACK_BOT_TOKEN`,
+`REDIS_URL`, `ALERT_COOLDOWN`, `DATABASE_DRIVER`, `DATABASE_DSN`,
+`MCP_CONFIG_PATH`, `LOG_LEVEL`.
 
 See [docs/configuration.md](docs/configuration.md) for the full reference.
 
@@ -396,6 +398,7 @@ internal/
   config/                    Config loading (Viper + env)
   llm/                       LLM provider interfaces
     openai/                  OpenAI-compatible API implementation
+    anthropic/               Anthropic (Claude) Messages API implementation
   mcp/                       MCP client and server manager (SSE transport)
   model/                     Grafana webhook payload structures
   notify/                    Notifier interface

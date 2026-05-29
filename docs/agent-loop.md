@@ -201,12 +201,35 @@ failed and can:
 ## LLM Provider
 
 The Agent works with the `llm.Provider` abstraction, not with a specific API directly.
+The provider is selected at startup from `llm.provider` (`openai` or `anthropic`).
 
-The current implementation — `internal/llm/openai/openai.go` — uses the OpenAI Chat Completions API
-with function calling. It supports any OpenAI-compatible API via `base_url`.
+Two implementations ship today:
 
-Format conversion:
+- `internal/llm/openai/openai.go` — OpenAI Chat Completions API with function
+  calling. Works with any OpenAI-compatible API via `base_url`.
+- `internal/llm/anthropic/anthropic.go` — Anthropic Messages API (Claude). It
+  streams and accumulates the response to avoid HTTP timeouts on large
+  `max_tokens` values, and supports prompt caching plus adaptive thinking.
+
+Format conversion (OpenAI):
 - `llm.Tool` → OpenAI `FunctionDefinition`
 - `llm.Message` with `ToolCalls` → OpenAI assistant message with function calls
 - `llm.Message` with `ToolCallID` → OpenAI tool message
 - OpenAI finish reason `"tool_calls"` → `llm.FinishReasonToolCall`
+
+Format conversion (Anthropic):
+- `llm.Tool` → Anthropic `tool` with an input JSON schema
+- `llm.Message` with `ToolCalls` → assistant message with `tool_use` blocks
+- consecutive `llm.Message` with `ToolCallID` → one user message of coalesced
+  `tool_result` blocks (the Messages API requires alternating turns)
+- `llm.ThinkingBlock` is echoed back, signatures intact, ahead of `tool_use`
+- Anthropic stop reason `tool_use` → `llm.FinishReasonToolCall`
+
+### Reasoning / thinking
+
+When `reasoning_effort` is set, the provider enables its reasoning mode. For
+Anthropic the returned thinking blocks are carried in `llm.ChatResponse.Thinking`
+and replayed on the next assistant turn (signatures preserved) — the API rejects
+a tool-use turn otherwise. OpenAI's reasoning is hidden, so no blocks are
+returned. See [configuration.md](configuration.md#reasoning--thinking-reasoning_effort)
+for the per-provider details.

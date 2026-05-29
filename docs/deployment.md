@@ -5,7 +5,7 @@
 ### Prerequisites
 
 - Go 1.25+ (see `go.mod`)
-- An LLM API key (OpenAI or any OpenAI-compatible endpoint)
+- An LLM API key (OpenAI / OpenAI-compatible endpoint, or Anthropic)
 - Access to at least one MCP server over SSE (e.g. `mcp-grafana`)
 - Optional: Telegram bot token, Slack bot token (`chat:write`, `files:write`)
 - Optional: Redis (for cross-restart dedup and queue durability)
@@ -22,9 +22,10 @@ $EDITOR .env
 Keys you almost always need:
 
 ```env
+LLM_PROVIDER=openai                    # openai | anthropic
 LLM_API_KEY=sk-...
-LLM_BASE_URL=                          # blank = api.openai.com
-LLM_MODEL=gpt-4o
+LLM_BASE_URL=                          # blank = provider default
+LLM_MODEL=                             # blank = provider default (gpt-4o / claude-opus-4-8)
 TELEGRAM_BOT_TOKEN=
 SLACK_BOT_TOKEN=
 ALERT_COOLDOWN=48h
