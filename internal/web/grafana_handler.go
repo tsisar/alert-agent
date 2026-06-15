@@ -40,7 +40,7 @@ func (h *Handler) grafanaAlerts(w http.ResponseWriter, r *http.Request) {
 		"limit_alerts": 0,
 	})
 
-	result, err := h.tools.CallTool(r.Context(), "grafana__alerting_manage_rules", args)
+	result, err := h.tools.CallTool(r.Context(), "gw__grafana_alerting_manage_rules", args)
 	if err != nil {
 		log.Errorf("grafana alerts: %v", err)
 		http.Error(w, "failed to fetch alerts from Grafana", http.StatusBadGateway)
