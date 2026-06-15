@@ -26,9 +26,9 @@ llm:
   api_key: ""                # API key (prefer env var)
   base_url: ""               # Custom endpoint (for compatible APIs)
   model: ""                  # Model (empty = provider default: openai→gpt-4o, anthropic→claude-opus-4-8)
-  max_tokens: 4096           # Token limit per response
+  max_tokens: 32768          # Token limit per response
   reasoning_effort: ""       # Reasoning/thinking effort: empty=off, low|medium|high (see note below)
-  summary_max_tokens: 1024   # Token limit for summary/notify calls (increase for reasoning models)
+  summary_max_tokens: 4096   # Token limit for summary/notify calls (increase for reasoning models)
   context_limit: 0           # Model context window (0 = no limit)
 
 telegram:
