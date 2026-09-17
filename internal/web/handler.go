@@ -58,6 +58,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /prompts", h.listPrompts)
 	mux.HandleFunc("PUT /prompts/{key}", h.updatePrompt)
 
+	mux.HandleFunc("POST /api/match-probe", h.matchProbe)
 	mux.HandleFunc("GET /api/grafana/alerts", h.grafanaAlerts)
 	mux.HandleFunc("GET /api/tools", h.listTools)
 }

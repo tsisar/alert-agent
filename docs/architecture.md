@@ -151,6 +151,7 @@ internal/
   server/                   HTTP server with graceful shutdown
   web/                      Web UI for managing scenarios and prompts
     handler.go              Route registration (/scenarios, /prompts, /api/*)
+    probe_handler.go        POST /api/match-probe — which scenario catches given labels
     templates/              templ templates (.templ + generated .go)
     static/                 Embedded CSS, JS, favicon
   version/                  Build version constants

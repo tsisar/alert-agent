@@ -34,3 +34,6 @@ vendor/
 /alert-agent
 /.claude/
 CLAUDE.md
+
+# Impeccable review captures (transient evidence, regenerated on demand)
+/.impeccable/review/

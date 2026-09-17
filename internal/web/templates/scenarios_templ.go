@@ -10,25 +10,41 @@ import templruntime "github.com/a-h/templ/runtime"
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/tsisar/alert-agent/internal/storage"
 )
 
-func priorityBadgeClass(p string) string {
-	switch p {
-	case "high":
-		return "badge badge-high"
-	case "critical":
-		return "badge badge-critical"
-	default:
-		return "badge badge-normal"
+// --- helpers ---------------------------------------------------------------
+
+type labelPair struct {
+	Key   string
+	Value string
+}
+
+// matchPairs returns the match labels in a stable order.
+func matchPairs(m storage.JSONMap) []labelPair {
+	pairs := make([]labelPair, 0, len(m))
+	for k, v := range m {
+		pairs = append(pairs, labelPair{Key: k, Value: v})
 	}
+	sort.Slice(pairs, func(i, j int) bool { return pairs[i].Key < pairs[j].Key })
+	return pairs
+}
+
+func matchText(m storage.JSONMap) string {
+	pairs := matchPairs(m)
+	lines := make([]string, 0, len(pairs))
+	for _, p := range pairs {
+		lines = append(lines, p.Key+"="+p.Value)
+	}
+	return strings.Join(lines, "\n")
 }
 
 func priorityKey(p string) string {
 	switch p {
-	case "high", "critical":
+	case "critical", "high":
 		return p
 	default:
 		return "normal"
@@ -36,11 +52,11 @@ func priorityKey(p string) string {
 }
 
 func priorityLabel(p string) string {
-	switch p {
-	case "high":
-		return "High"
+	switch priorityKey(p) {
 	case "critical":
 		return "Critical"
+	case "high":
+		return "High"
 	default:
 		return "Normal"
 	}
@@ -66,24 +82,53 @@ func countCatchAll(scenarios []storage.Scenario) int {
 	return n
 }
 
+// promptPreview trims the prompt to a single scannable line.
 func promptPreview(s string) string {
-	s = strings.TrimSpace(s)
-	truncated := false
-	if i := strings.IndexByte(s, '\n'); i >= 0 {
-		s = s[:i]
-		truncated = true
+	line := strings.TrimSpace(strings.ReplaceAll(strings.ReplaceAll(s, "\r", " "), "\n", " "))
+	for strings.Contains(line, "  ") {
+		line = strings.ReplaceAll(line, "  ", " ")
 	}
-	const max = 140
-	if r := []rune(s); len(r) > max {
-		s = strings.TrimRight(string(r[:max]), " ")
-		truncated = true
+	const limit = 96
+	if len(line) > limit {
+		return strings.TrimSpace(line[:limit]) + "…"
 	}
-	if truncated {
-		return strings.TrimRight(s, " ") + "…"
-	}
-	return s
+	return line
 }
 
+// searchIndex is the haystack the client-side filter matches against.
+func searchIndex(s storage.Scenario) string {
+	parts := []string{s.Name, s.Priority, s.Timeout, s.ChannelTelegram, s.ChannelSlack}
+	for _, p := range matchPairs(s.Match) {
+		parts = append(parts, p.Key+"="+p.Value)
+	}
+	parts = append(parts, []string(s.Tools)...)
+	if len(s.Match) == 0 {
+		parts = append(parts, "catch-all")
+	}
+	return strings.ToLower(strings.Join(parts, " "))
+}
+
+// toolsSummary is read under an engraved TOOLS label, so it carries the value
+// only: "all" or a count.
+func toolsSummary(s storage.Scenario) string {
+	if len(s.Tools) == 0 {
+		return "all"
+	}
+	return fmt.Sprint(len(s.Tools))
+}
+
+func destinations(s storage.Scenario) []labelPair {
+	out := []labelPair{}
+	if s.ChannelTelegram != "" {
+		out = append(out, labelPair{Key: "telegram", Value: s.ChannelTelegram})
+	}
+	if s.ChannelSlack != "" {
+		out = append(out, labelPair{Key: "slack", Value: s.ChannelSlack})
+	}
+	return out
+}
+
+// --- scenario field --------------------------------------------------------
 func ScenariosPage(scenarios []storage.Scenario) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -129,99 +174,73 @@ func ScenariosPage(scenarios []storage.Scenario) templ.Component {
 					}()
 				}
 				ctx = templ.InitializeContext(ctx)
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<a role=\"button\" class=\"outline secondary\" onclick=\"document.getElementById('import-file').click()\">Import YAML</a> <a href=\"/scenarios/export.yaml\" role=\"button\" class=\"outline secondary\" download=\"scenarios.yaml\">Export YAML</a> <a href=\"/scenarios/new\" role=\"button\" class=\"btn-highlight\">+ New Scenario</a><form id=\"import-form\" hx-post=\"/scenarios/import\" hx-target=\"body\" hx-push-url=\"/scenarios\" hx-encoding=\"multipart/form-data\" style=\"display:none\"><input type=\"file\" id=\"import-file\" name=\"file\" accept=\".yaml,.yml\" onchange=\"if(this.files.length){if(confirm('Import scenarios from '+this.files[0].name+'? Existing scenarios with matching names will be updated.')){htmx.trigger(this.closest('form'),'submit')}this.value=''}\"></form>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<a href=\"/scenarios/export.yaml\" role=\"button\" class=\"btn btn-sm\" download=\"scenarios.yaml\">Export YAML</a> <button type=\"button\" class=\"btn btn-sm\" onclick=\"document.getElementById('import-file').click()\">Import YAML</button><form id=\"import-form\" hx-post=\"/scenarios/import\" hx-target=\"body\" hx-push-url=\"/scenarios\" hx-encoding=\"multipart/form-data\" hidden><input type=\"file\" id=\"import-file\" name=\"file\" accept=\".yaml,.yml\" onchange=\"if(this.files.length){htmx.trigger(this.closest('form'),'submit');this.value=''}\"></form>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				return nil
 			})
-			templ_7745c5c3_Err = PageHeader("Scenarios", "Scenarios define how alerts are matched, investigated, and reported.").Render(templ.WithChildren(ctx, templ_7745c5c3_Var3), templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = PageHead("Signal panel", "Every alert enters at the top and takes the first path that matches it. Paths are evaluated in the order shown.").Render(templ.WithChildren(ctx, templ_7745c5c3_Var3), templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, " <div class=\"scenario-stats\"><div class=\"stat\"><span class=\"label\">Configured</span> <span class=\"value\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, " <form class=\"strip\" data-probe-form><div class=\"readout\"><div class=\"readout-cell\"><span class=\"engraved\">Paths</span> <span class=\"readout-value\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var4 string
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprint(len(scenarios)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 92, Col: 52}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 151, Col: 61}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, " <small>rules</small></span></div><div class=\"stat stat--critical\"><span class=\"label\">Critical</span> <span class=\"value\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</span></div><div class=\"readout-cell\" data-mark=\"critical\"><span class=\"engraved\">Critical</span> <span class=\"readout-value\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var5 string
 			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprint(countByPriority(scenarios, "critical")))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 96, Col: 76}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 155, Col: 85}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</span></div><div class=\"stat stat--high\"><span class=\"label\">High</span> <span class=\"value\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</span></div><div class=\"readout-cell\" data-mark=\"high\"><span class=\"engraved\">High</span> <span class=\"readout-value\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var6 string
 			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprint(countByPriority(scenarios, "high")))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 100, Col: 72}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 159, Col: 81}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</span></div><div class=\"stat\"><span class=\"label\">Catch-all</span> <span class=\"value\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</span></div><div class=\"readout-cell\"><span class=\"engraved\">Catch-all</span> <span class=\"readout-value\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var7 string
 			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprint(countCatchAll(scenarios)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 104, Col: 62}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 163, Col: 71}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</span></div></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</span></div></div><div class=\"strip-probe\"><label class=\"engraved\" for=\"probe-input\">Test an alert</label> <input type=\"text\" id=\"probe-input\" class=\"code\" data-probe-input placeholder=\"alertname=HighCPU, severity=critical\" autocomplete=\"off\"> <button type=\"submit\" class=\"btn btn-sm\">Trace</button></div><div class=\"strip-action\"><a href=\"/scenarios/new\" role=\"button\" class=\"btn btn-primary\">New scenario</a></div></form><div class=\"probe-result\" data-probe-result role=\"status\" aria-live=\"polite\" hidden></div><div class=\"field-toolbar\"><input type=\"search\" class=\"filter-input\" data-filter-input placeholder=\"Filter by name, label, tool or channel  —  press /\" aria-label=\"Filter scenarios\" autocomplete=\"off\"> <span class=\"field-count\" data-filter-count></span></div><div class=\"field-columns\" aria-hidden=\"true\"><span class=\"engraved\">#</span> <span class=\"engraved\">Path</span> <span class=\"engraved\">Catches</span> <span class=\"engraved\">Investigates &amp; delivers</span> <span class=\"engraved field-columns-actions\"></span></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Var8 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
-				templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
-				templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
-				if !templ_7745c5c3_IsBuffer {
-					defer func() {
-						templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
-						if templ_7745c5c3_Err == nil {
-							templ_7745c5c3_Err = templ_7745c5c3_BufErr
-						}
-					}()
-				}
-				ctx = templ.InitializeContext(ctx)
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<div id=\"scenario-list\">")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				templ_7745c5c3_Err = ScenarioList(scenarios).Render(ctx, templ_7745c5c3_Buffer)
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</div>")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				return nil
-			})
-			templ_7745c5c3_Err = SectionCard("Scenario Catalog", "Review alert routing rules and keep execution order predictable.").Render(templ.WithChildren(ctx, templ_7745c5c3_Var8), templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = ScenarioField(scenarios).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -235,7 +254,57 @@ func ScenariosPage(scenarios []storage.Scenario) templ.Component {
 	})
 }
 
-func ScenarioList(scenarios []storage.Scenario) templ.Component {
+func ScenarioField(scenarios []storage.Scenario) templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
+		}
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var8 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var8 == nil {
+			templ_7745c5c3_Var8 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<div class=\"field\" id=\"scenario-field\" data-field>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if len(scenarios) == 0 {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<div class=\"empty\"><p class=\"empty-title\">No paths configured</p><p>Until a scenario exists, every alert that reaches the webhook is dropped. A scenario decides which alerts it catches, how the agent investigates them, and where the report is sent.</p><ol class=\"empty-steps\"><li>Create a catch-all path first — no match labels, so nothing is lost.</li><li>Add narrower paths above it for the alerts that deserve their own prompt.</li></ol><a href=\"/scenarios/new\" role=\"button\" class=\"btn btn-primary\">New scenario</a></div>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		} else {
+			for i, s := range scenarios {
+				templ_7745c5c3_Err = PathRow(s, i, len(scenarios)).Render(ctx, templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, " <div class=\"empty\" data-filter-empty hidden><p class=\"empty-title\">No path matches that filter</p><p>Clear the filter to see every path again.</p></div>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</div>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		return nil
+	})
+}
+
+func PathRow(s storage.Scenario, rank, total int) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -256,131 +325,107 @@ func ScenarioList(scenarios []storage.Scenario) templ.Component {
 			templ_7745c5c3_Var9 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		if len(scenarios) == 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<div class=\"empty-state\">")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = emptyIcon().Render(ctx, templ_7745c5c3_Buffer)
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<h3>No scenarios yet</h3><p>Scenarios determine how incoming alerts are matched to investigation workflows.</p><a href=\"/scenarios/new\" role=\"button\">Create your first scenario</a></div>")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<div class=\"scenario-grid\">")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			for _, s := range scenarios {
-				templ_7745c5c3_Err = ScenarioCard(s).Render(ctx, templ_7745c5c3_Buffer)
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "</div>")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<article class=\"path\" id=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
 		}
-		return nil
-	})
-}
-
-func ScenarioCard(s storage.Scenario) templ.Component {
-	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
-		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
-		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
-			return templ_7745c5c3_CtxErr
+		var templ_7745c5c3_Var10 string
+		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("scenario-%d", s.ID))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 236, Col: 39}
 		}
-		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
-		if !templ_7745c5c3_IsBuffer {
-			defer func() {
-				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
-				if templ_7745c5c3_Err == nil {
-					templ_7745c5c3_Err = templ_7745c5c3_BufErr
-				}
-			}()
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var10)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
 		}
-		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var10 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var10 == nil {
-			templ_7745c5c3_Var10 = templ.NopComponent
-		}
-		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<div class=\"scenario-card\" id=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "\" data-id=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var11 string
-		templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("scenario-%d", s.ID))
+		templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprint(s.ID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 133, Col: 65}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 237, Col: 28}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var11)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "\" data-priority=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "\" data-search=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var12 string
-		templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.ResolveAttributeValue(priorityKey(s.Priority))
+		templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.ResolveAttributeValue(searchIndex(s))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 133, Col: 107}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 238, Col: 30}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var12)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "\"><div class=\"scenario-card-header\"><div class=\"scenario-card-heading\"><h4 class=\"scenario-card-title\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "\" data-catch-all=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var13 string
-		templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(s.Name)
+		templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.ResolveAttributeValue(boolAttr(len(s.Match) == 0))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 137, Col: 13}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 239, Col: 46}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var13)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, " <span class=\"scenario-card-order\">#")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "\"><div class=\"path-rank\"><span class=\"rank-node\" title=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var14 string
-		templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprint(s.OrderIndex))
+		templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("Evaluated %d of %d", rank+1, total))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 138, Col: 66}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 242, Col: 83}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "</span></h4><p class=\"scenario-card-subtitle\">Investigation and notification rule</p></div>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var14)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var15 = []any{priorityBadgeClass(s.Priority)}
-		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var15...)
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "<span class=\"")
+		var templ_7745c5c3_Var15 string
+		templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprint(rank + 1))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 242, Col: 108}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "</span> <span class=\"mark\" data-level=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var16 string
-		templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var15).String())
+		templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.ResolveAttributeValue(priorityKey(s.Priority))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 1, Col: 0}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 243, Col: 58}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var16)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "\" aria-hidden=\"true\"></span></div><div class=\"path-segment path-seg-name\"><div class=\"path-name\"><a href=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var17 templ.SafeURL
+		templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(fmt.Sprintf("/scenarios/%d/edit", s.ID)))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 247, Col: 68}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -388,208 +433,281 @@ func ScenarioCard(s storage.Scenario) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var17 string
-		templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(priorityLabel(s.Priority))
+		var templ_7745c5c3_Var18 string
+		templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(s.Name)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 142, Col: 77}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 247, Col: 79}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "</span></div><div class=\"scenario-card-meta\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if len(s.Match) == 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<span class=\"tag tag-catch-all\">catch-all</span> ")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-		} else {
-			for k, v := range s.Match {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "<span class=\"tag tag-match\">")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				var templ_7745c5c3_Var18 string
-				templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(k)
-				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 149, Col: 36}
-				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "=")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				var templ_7745c5c3_Var19 string
-				templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs(v)
-				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 149, Col: 42}
-				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "</span> ")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-			}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "</a> <span class=\"mark\" data-level=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "<span class=\"tag tag-timeout\">")
+		var templ_7745c5c3_Var19 string
+		templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.ResolveAttributeValue(priorityKey(s.Priority))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 248, Col: 59}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var19)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var20 string
-		templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinStringErrs(s.Timeout)
+		templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinStringErrs(priorityLabel(s.Priority))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 152, Col: 44}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 248, Col: 89}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "</span> ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "</span></div><span class=\"path-prompt\" title=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if s.SendImages {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "<span class=\"tag tag-images\">images</span> ")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
+		var templ_7745c5c3_Var21 string
+		templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.ResolveAttributeValue(promptPreview(s.Prompt))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 250, Col: 60}
 		}
-		if s.ChannelTelegram != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "<span class=\"tag tag-channel\">tg: ")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var21 string
-			templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.JoinStringErrs(s.ChannelTelegram)
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 157, Col: 57}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var21))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "</span> ")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-		}
-		if s.ChannelSlack != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "<span class=\"tag tag-channel\">slack: ")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var22 string
-			templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinStringErrs(s.ChannelSlack)
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 160, Col: 57}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var22))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "</span>")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "</div>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var21)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if s.Prompt != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "<div class=\"scenario-card-prompt\">")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var23 string
-			templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinStringErrs(promptPreview(s.Prompt))
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 164, Col: 62}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var23))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 34, "</div>")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "<div class=\"scenario-card-actions\"><a href=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var24 templ.SafeURL
-		templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(fmt.Sprintf("/scenarios/%d/edit", s.ID)))
+		var templ_7745c5c3_Var22 string
+		templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinStringErrs(promptPreview(s.Prompt))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 168, Col: 65}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 250, Col: 88}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var24))
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var22))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "\" role=\"button\" class=\"btn-highlight\">Edit</a> <a href=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "</span></div><div class=\"path-segment path-seg-catches\"><div class=\"chips\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var25 templ.SafeURL
-		templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(fmt.Sprintf("/scenarios/%d/copy", s.ID)))
+		if len(s.Match) == 0 {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "<span class=\"chip\" data-open=\"true\">catch-all — anything unmatched above</span>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		} else {
+			for _, p := range matchPairs(s.Match) {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "<span class=\"chip\"><span class=\"chip-key\">")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var23 string
+				templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinStringErrs(p.Key)
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 258, Col: 55}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var23))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "</span>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var24 string
+				templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.JoinStringErrs(p.Value)
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 258, Col: 73}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var24))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "</span>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "</div></div><div class=\"path-segment path-seg-runs\"><div class=\"facts\"><span><b>Tools</b>")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 175, Col: 65}
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var25 string
+		templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinStringErrs(toolsSummary(s))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 265, Col: 39}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var25))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "\" role=\"button\" class=\"outline secondary\">Copy</a> <button hx-delete=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "</span> <span><b>Budget</b>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var26 string
-		templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("/scenarios/%d", s.ID))
+		templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs(s.Timeout)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 182, Col: 50}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 266, Col: 34}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var26)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 38, "\" hx-target=\"")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var26))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var27 string
-		templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("#scenario-%d", s.ID))
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 183, Col: 49}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var27)
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "</span> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, "\" hx-swap=\"outerHTML\" hx-confirm=\"")
+		if s.SendImages {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "<span><b>Images</b>yes</span>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		} else {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "<span data-off=\"true\"><b>Images</b>no</span>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 34, "</div><div class=\"chips\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var28 string
-		templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("Delete scenario \"%s\"?", s.Name))
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 185, Col: 63}
+		if len(destinations(s)) == 0 {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "<span class=\"chip\" data-open=\"true\">default channels</span>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		} else {
+			for _, d := range destinations(s) {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "<span class=\"chip\"><span class=\"chip-key\">")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var27 string
+				templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinStringErrs(d.Key)
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 278, Col: 55}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "</span>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var28 string
+				templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.JoinStringErrs(d.Value)
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 278, Col: 73}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var28))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 38, "</span>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var28)
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, "</div></div><div class=\"path-actions\"><div class=\"path-actions-default\"><a href=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 40, "\" class=\"outline secondary\">Delete</button></div></div>")
+		var templ_7745c5c3_Var29 templ.SafeURL
+		templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(fmt.Sprintf("/scenarios/%d/edit", s.ID)))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 285, Col: 68}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var29))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 40, "\" role=\"button\" class=\"btn btn-sm\">Edit</a> <a href=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var30 templ.SafeURL
+		templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(fmt.Sprintf("/scenarios/%d/copy", s.ID)))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 286, Col: 68}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var30))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 41, "\" role=\"button\" class=\"btn btn-sm\">Copy</a> <button type=\"button\" class=\"btn btn-sm btn-quiet\" data-delete-ask aria-label=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var31 string
+		templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.ResolveAttributeValue("Delete " + s.Name)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 287, Col: 102}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var31)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, "\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = trashIcon().Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, "</button></div><div class=\"confirm\" role=\"group\" aria-label=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var32 string
+		templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.ResolveAttributeValue("Confirm deleting " + s.Name)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 291, Col: 78}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var32)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 44, "\"><span>Delete?</span> <button type=\"button\" class=\"btn btn-sm btn-danger\" data-delete-confirm hx-delete=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var33 string
+		templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("/scenarios/%d", s.ID))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 297, Col: 51}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var33)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 45, "\" hx-target=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var34 string
+		templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("#scenario-%d", s.ID))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 298, Col: 50}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var34)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 46, "\" hx-swap=\"outerHTML\">Yes, delete</button> <button type=\"button\" class=\"btn btn-sm\" data-delete-cancel>Keep</button></div></div></article>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -597,7 +715,23 @@ func ScenarioCard(s storage.Scenario) templ.Component {
 	})
 }
 
-func ScenarioFormPage(s *storage.Scenario, isEdit bool) templ.Component {
+// --- editor ----------------------------------------------------------------
+
+func formTitle(isEdit bool) string {
+	if isEdit {
+		return "Edit scenario"
+	}
+	return "New scenario"
+}
+
+func formLede(isEdit bool) string {
+	if isEdit {
+		return "Changes take effect for the next alert the agent receives."
+	}
+	return "A new path in the panel: what it catches, how it investigates, where the report lands."
+}
+
+func ScenarioFormPage(s *storage.Scenario, isEdit bool, formErr string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -613,12 +747,12 @@ func ScenarioFormPage(s *storage.Scenario, isEdit bool) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var29 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var29 == nil {
-			templ_7745c5c3_Var29 = templ.NopComponent
+		templ_7745c5c3_Var35 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var35 == nil {
+			templ_7745c5c3_Var35 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Var30 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_Var36 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 			templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 			templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
 			if !templ_7745c5c3_IsBuffer {
@@ -630,58 +764,7 @@ func ScenarioFormPage(s *storage.Scenario, isEdit bool) templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			if isEdit {
-				templ_7745c5c3_Var31 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
-					templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
-					templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
-					if !templ_7745c5c3_IsBuffer {
-						defer func() {
-							templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
-							if templ_7745c5c3_Err == nil {
-								templ_7745c5c3_Err = templ_7745c5c3_BufErr
-							}
-						}()
-					}
-					ctx = templ.InitializeContext(ctx)
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 41, "<a href=\"/scenarios\" role=\"button\" class=\"outline secondary\">Back to Scenarios</a>")
-					if templ_7745c5c3_Err != nil {
-						return templ_7745c5c3_Err
-					}
-					return nil
-				})
-				templ_7745c5c3_Err = PageHeader("Edit Scenario", "Update matching and investigation behavior for this scenario.").Render(templ.WithChildren(ctx, templ_7745c5c3_Var31), templ_7745c5c3_Buffer)
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-			} else {
-				templ_7745c5c3_Var32 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
-					templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
-					templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
-					if !templ_7745c5c3_IsBuffer {
-						defer func() {
-							templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
-							if templ_7745c5c3_Err == nil {
-								templ_7745c5c3_Err = templ_7745c5c3_BufErr
-							}
-						}()
-					}
-					ctx = templ.InitializeContext(ctx)
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, "<a href=\"/scenarios\" role=\"button\" class=\"outline secondary\">Back to Scenarios</a>")
-					if templ_7745c5c3_Err != nil {
-						return templ_7745c5c3_Err
-					}
-					return nil
-				})
-				templ_7745c5c3_Err = PageHeader("New Scenario", "Create a new rule for alert matching, investigation, and routing.").Render(templ.WithChildren(ctx, templ_7745c5c3_Var32), templ_7745c5c3_Buffer)
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, " ")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Var33 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+			templ_7745c5c3_Var37 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 				templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 				templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
 				if !templ_7745c5c3_IsBuffer {
@@ -693,31 +776,58 @@ func ScenarioFormPage(s *storage.Scenario, isEdit bool) templ.Component {
 					}()
 				}
 				ctx = templ.InitializeContext(ctx)
-				templ_7745c5c3_Err = ScenarioForm(s, isEdit).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, "<a href=\"/scenarios\" role=\"button\" class=\"btn\" data-leave>Back to panel</a>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				return nil
 			})
-			templ_7745c5c3_Err = SectionCard("Scenario Details", "Fields below control matching, investigation and notification channels.").Render(templ.WithChildren(ctx, templ_7745c5c3_Var33), templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = PageHead(formTitle(isEdit), formLede(isEdit)).Render(templ.WithChildren(ctx, templ_7745c5c3_Var37), templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 48, " ")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			if formErr != "" {
+				templ_7745c5c3_Err = Notice("error", formErr).Render(ctx, templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 49, " <div class=\"editor\"><nav class=\"rail\" data-rail aria-label=\"Sections\"><a href=\"#section-general\">General</a> <a href=\"#section-matching\">Matching</a> <a href=\"#section-investigation\">Investigation</a> <a href=\"#section-delivery\">Delivery</a><p class=\"rail-note\">Paths are evaluated in order. A path with no match labels catches everything that reached it unmatched.</p></nav>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = ScenarioForm(s, isEdit).Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 50, "</div>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = toolPickerDialog().Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 51, " ")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = grafanaImportDialog().Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = Layout(formTitle(isEdit), "scenarios").Render(templ.WithChildren(ctx, templ_7745c5c3_Var30), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = Layout(formTitle(isEdit), "scenario-form").Render(templ.WithChildren(ctx, templ_7745c5c3_Var36), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		return nil
 	})
-}
-
-func formTitle(isEdit bool) string {
-	if isEdit {
-		return "Edit Scenario"
-	}
-	return "New Scenario"
 }
 
 func ScenarioForm(s *storage.Scenario, isEdit bool) templ.Component {
@@ -736,215 +846,207 @@ func ScenarioForm(s *storage.Scenario, isEdit bool) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var34 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var34 == nil {
-			templ_7745c5c3_Var34 = templ.NopComponent
+		templ_7745c5c3_Var38 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var38 == nil {
+			templ_7745c5c3_Var38 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 44, "<form")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 52, "<form")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if isEdit {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 45, " hx-put=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 53, " hx-put=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var35 string
-			templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("/scenarios/%d", s.ID))
+			var templ_7745c5c3_Var39 string
+			templ_7745c5c3_Var39, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("/scenarios/%d", s.ID))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 221, Col: 46}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 352, Col: 46}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var35)
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var39)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 46, "\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 54, "\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, " hx-post=\"/scenarios\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 55, " hx-post=\"/scenarios\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 48, " hx-target=\"body\" hx-push-url=\"/scenarios\" class=\"scenario-form\"><div class=\"form-section\"><div class=\"form-section-head\"><span class=\"form-section-num\">1</span><h3 class=\"form-section-title\">General</h3><span class=\"form-section-desc\">Name, order, timeout and priority</span></div><div class=\"grid\"><label>Name <input type=\"text\" name=\"name\" value=\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var36 string
-		templ_7745c5c3_Var36, templ_7745c5c3_Err = templ.ResolveAttributeValue(s.Name)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 238, Col: 50}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var36)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 49, "\" required></label> <label>Order Index <input type=\"number\" name=\"order_index\" value=\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var37 string
-		templ_7745c5c3_Var37, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprint(s.OrderIndex))
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 242, Col: 77}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var37)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 50, "\"></label></div><div class=\"grid\"><label>Timeout <input type=\"text\" name=\"timeout\" value=\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var38 string
-		templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.ResolveAttributeValue(s.Timeout)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 248, Col: 56}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var38)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 51, "\" placeholder=\"2m\"></label><div class=\"field\"><span class=\"field-label\">Priority</span><div class=\"segment-control\" role=\"radiogroup\" aria-label=\"Priority\"><label class=\"segment\" data-priority=\"normal\"><input type=\"radio\" name=\"priority\" value=\"normal\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		if s.Priority == "normal" || s.Priority == "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 52, " checked")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 53, "> <span>Normal</span></label> <label class=\"segment\" data-priority=\"high\"><input type=\"radio\" name=\"priority\" value=\"high\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		if s.Priority == "high" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 54, " checked")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 55, "> <span>High</span></label> <label class=\"segment\" data-priority=\"critical\"><input type=\"radio\" name=\"priority\" value=\"critical\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		if s.Priority == "critical" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 56, " checked")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 57, "> <span>Critical</span></label></div></div></div><label class=\"toggle\"><input type=\"checkbox\" name=\"send_images\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		if s.SendImages {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 58, " checked")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 59, "> <span>Send images with investigation report</span></label></div><div class=\"form-section\"><div class=\"form-section-head\"><span class=\"form-section-num\">2</span><h3 class=\"form-section-title\">Matching</h3><span class=\"form-section-desc\">Which alerts this scenario handles</span></div><label>Match Labels <textarea id=\"match-labels\" name=\"match\" rows=\"1\" class=\"auto-resize\" placeholder=\"alertname=HighCPU&#10;severity=critical\">")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var39 string
-		templ_7745c5c3_Var39, templ_7745c5c3_Err = templ.JoinStringErrs(formatMatch(s.Match))
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 281, Col: 150}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var39))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 60, "</textarea></label><div class=\"form-help-row\"><p class=\"form-help\">One key=value pair per line. Leave empty for a catch-all scenario.</p><button type=\"button\" class=\"btn-import\" onclick=\"openGrafanaImport()\">Import from Grafana</button></div>")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = grafanaImportModal().Render(ctx, templ_7745c5c3_Buffer)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 61, "</div><div class=\"form-section\"><div class=\"form-section-head\"><span class=\"form-section-num\">3</span><h3 class=\"form-section-title\">Investigation</h3><span class=\"form-section-desc\">LLM prompt and allowed tools</span></div><label>Prompt <textarea name=\"prompt\" rows=\"8\" required>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 56, " hx-target=\"body\" hx-push-url=\"/scenarios\" class=\"form-stack\" data-guard-form><section class=\"form-section\" id=\"section-general\"><div class=\"form-section-head\"><h2 class=\"form-section-title\">General</h2><span class=\"form-section-note\">Identity, evaluation order, budgets</span></div><div class=\"form-grid\"><div class=\"field-block\"><label class=\"field-label\" for=\"field-name\">Name</label> <input type=\"text\" id=\"field-name\" name=\"name\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var40 string
-		templ_7745c5c3_Var40, templ_7745c5c3_Err = templ.JoinStringErrs(s.Prompt)
+		templ_7745c5c3_Var40, templ_7745c5c3_Err = templ.ResolveAttributeValue(s.Name)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 297, Col: 56}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 369, Col: 66}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var40))
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var40)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 62, "</textarea></label><p class=\"form-help\">Instructions for the LLM on how to investigate alerts matched by this scenario.</p><label>Allowed Tools <input type=\"text\" id=\"allowed-tools\" name=\"tools\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 57, "\" required autocomplete=\"off\"><p class=\"help\">Used in logs, YAML export and notification footers. Must be unique.</p></div><div class=\"field-block\"><label class=\"field-label\" for=\"field-order\">Order index <span class=\"optional\">lower runs first</span></label> <input type=\"number\" id=\"field-order\" name=\"order_index\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var41 string
-		templ_7745c5c3_Var41, templ_7745c5c3_Err = templ.ResolveAttributeValue(strings.Join([]string(s.Tools), ", "))
+		templ_7745c5c3_Var41, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprint(s.OrderIndex))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 302, Col: 100}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 377, Col: 94}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var41)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 63, "\" placeholder=\"search_dashboards, get_datasource_by_uid\"></label><div class=\"form-help-row\"><p class=\"form-help\">Comma-separated list of MCP tool names. Leave empty to allow all available tools.</p><button type=\"button\" class=\"btn-import\" onclick=\"openToolPicker()\">Browse Tools</button></div>")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = toolPickerModal().Render(ctx, templ_7745c5c3_Buffer)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 64, "</div><div class=\"form-section\"><div class=\"form-section-head\"><span class=\"form-section-num\">4</span><h3 class=\"form-section-title\">Notification Channels</h3><span class=\"form-section-desc\">Override default routing</span></div><div class=\"grid\"><label>Telegram Channel <input type=\"text\" name=\"channel_telegram\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 58, "\"><p class=\"help\">Ties are broken by name. The first path whose labels match wins.</p></div></div><div class=\"form-grid\" style=\"margin-top:1rem\"><div class=\"field-block\"><label class=\"field-label\" for=\"field-timeout\">Investigation timeout</label> <input type=\"text\" id=\"field-timeout\" name=\"timeout\" class=\"code\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var42 string
-		templ_7745c5c3_Var42, templ_7745c5c3_Err = templ.ResolveAttributeValue(s.ChannelTelegram)
+		templ_7745c5c3_Var42, templ_7745c5c3_Err = templ.ResolveAttributeValue(s.Timeout)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 319, Col: 73}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 384, Col: 88}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var42)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 65, "\" placeholder=\"-100123456789\"></label> <label>Slack Channel <input type=\"text\" name=\"channel_slack\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 59, "\" placeholder=\"2m\" required><div class=\"presets\"><button type=\"button\" class=\"btn btn-sm\" data-preset=\"30s\" data-preset-target=\"field-timeout\">30s</button> <button type=\"button\" class=\"btn btn-sm\" data-preset=\"2m\" data-preset-target=\"field-timeout\">2m</button> <button type=\"button\" class=\"btn btn-sm\" data-preset=\"5m\" data-preset-target=\"field-timeout\">5m</button> <button type=\"button\" class=\"btn btn-sm\" data-preset=\"10m\" data-preset-target=\"field-timeout\">10m</button></div><p class=\"help\">Go duration. When it elapses, the agent reports what it has so far.</p></div><div class=\"field-block\"><span class=\"field-label\" id=\"priority-label\">Priority</span><div class=\"segmented\" role=\"radiogroup\" aria-labelledby=\"priority-label\"><label><input type=\"radio\" name=\"priority\" value=\"normal\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if priorityKey(s.Priority) == "normal" {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 60, " checked")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 61, "> <span class=\"mark\" data-level=\"normal\" aria-hidden=\"true\"></span> <span>Normal</span></label> <label><input type=\"radio\" name=\"priority\" value=\"high\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if priorityKey(s.Priority) == "high" {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 62, " checked")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 63, "> <span class=\"mark\" data-level=\"high\" aria-hidden=\"true\"></span> <span>High</span></label> <label><input type=\"radio\" name=\"priority\" value=\"critical\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if priorityKey(s.Priority) == "critical" {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 64, " checked")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 65, "> <span class=\"mark\" data-level=\"critical\" aria-hidden=\"true\"></span> <span>Critical</span></label></div><label class=\"switch\" style=\"margin-top:0.75rem\"><input type=\"checkbox\" name=\"send_images\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if s.SendImages {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 66, " checked")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 67, "> <span>Attach panel images to the report</span></label></div></div></section><section class=\"form-section\" id=\"section-matching\"><div class=\"form-section-head\"><h2 class=\"form-section-title\">Matching</h2><span class=\"form-section-note\" data-pairs-badge></span></div><div class=\"field-block\"><span class=\"field-label\">Alert labels this path catches</span><div class=\"pairs\" data-pairs></div><p class=\"pairs-empty\" data-pairs-empty hidden>No labels — this path is a catch-all and takes every alert that reached it unmatched.</p><div class=\"row-actions\"><button type=\"button\" class=\"btn btn-sm\" data-pair-add>Add label</button> <button type=\"button\" class=\"btn btn-sm\" data-grafana-open>Import from Grafana</button></div><p class=\"help\">All labels listed here must be present on the alert with exactly these values. The alert may carry other labels.</p><textarea name=\"match\" data-pairs-store hidden aria-hidden=\"true\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var43 string
-		templ_7745c5c3_Var43, templ_7745c5c3_Err = templ.ResolveAttributeValue(s.ChannelSlack)
+		templ_7745c5c3_Var43, templ_7745c5c3_Err = templ.JoinStringErrs(matchText(s.Match))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 323, Col: 67}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 438, Col: 90}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var43)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var43))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 66, "\" placeholder=\"#alerts\"></label></div><p class=\"form-help\">Override the default notification channels for this scenario. Leave empty to use defaults.</p></div><div class=\"form-actions\"><button type=\"submit\" class=\"btn-highlight\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 68, "</textarea></div></section><section class=\"form-section\" id=\"section-investigation\"><div class=\"form-section-head\"><h2 class=\"form-section-title\">Investigation</h2><span class=\"form-section-note\">What the agent is told, and what it may use</span></div><div class=\"field-block\"><label class=\"field-label\" for=\"field-prompt\">Prompt</label> <textarea id=\"field-prompt\" name=\"prompt\" class=\"code\" rows=\"4\" data-autoresize required placeholder=\"Investigate the alert. Check the related dashboard, compare against the last 24h, and report the likely cause.\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var44 string
+		templ_7745c5c3_Var44, templ_7745c5c3_Err = templ.JoinStringErrs(s.Prompt)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 456, Col: 15}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var44))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 69, "</textarea><p class=\"help\">Appended to the system prompt for alerts matched by this path. Written for the model, not for a human reader.</p></div><div class=\"field-block\" style=\"margin-top:1rem\"><span class=\"field-label\">Allowed tools <span class=\"optional\">empty = all</span></span><div class=\"chips\" data-tool-chips></div><div class=\"row-actions\"><button type=\"button\" class=\"btn btn-sm\" data-tool-open>Choose tools</button></div><p class=\"help\">Restricting tools keeps an investigation focused and cheaper. Tools that no connected MCP server offers are marked; they are kept but never called.</p><input type=\"text\" name=\"tools\" data-tools-store hidden aria-hidden=\"true\" value=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var45 string
+		templ_7745c5c3_Var45, templ_7745c5c3_Err = templ.ResolveAttributeValue(strings.Join([]string(s.Tools), ", "))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 475, Col: 124}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var45)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 70, "\"></div></section><section class=\"form-section\" id=\"section-delivery\"><div class=\"form-section-head\"><h2 class=\"form-section-title\">Delivery</h2><span class=\"form-section-note\">Overrides the default channels</span></div><div class=\"form-grid\"><div class=\"field-block\"><label class=\"field-label\" for=\"field-telegram\">Telegram <span class=\"optional\">optional</span></label> <input type=\"text\" id=\"field-telegram\" name=\"channel_telegram\" class=\"code\" value=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var46 string
+		templ_7745c5c3_Var46, templ_7745c5c3_Err = templ.ResolveAttributeValue(s.ChannelTelegram)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 489, Col: 106}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var46)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 71, "\" placeholder=\"-100123456789\"></div><div class=\"field-block\"><label class=\"field-label\" for=\"field-slack\">Slack <span class=\"optional\">optional</span></label> <input type=\"text\" id=\"field-slack\" name=\"channel_slack\" class=\"code\" value=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var47 string
+		templ_7745c5c3_Var47, templ_7745c5c3_Err = templ.ResolveAttributeValue(s.ChannelSlack)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/scenarios.templ`, Line: 496, Col: 97}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var47)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 72, "\" placeholder=\"#alerts\"></div></div><p class=\"help\" style=\"margin-top:0.75rem\">Leave both empty to use the channels configured for the agent. A channel set here applies only to alerts caught by this path.</p></section><div class=\"row-actions\"><button type=\"submit\" class=\"btn btn-primary\"><span class=\"btn-idle\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if isEdit {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 67, "Update Scenario")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 73, "Save changes")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 68, "Create Scenario")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 74, "Create scenario")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 69, "</button> <a href=\"/scenarios\" role=\"button\" class=\"outline secondary\">Cancel</a></div></form>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 75, "</span> <span class=\"btn-working\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = spinnerIcon().Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 76, "Saving…</span></button> <a href=\"/scenarios\" role=\"button\" class=\"btn\" data-leave>Cancel</a></div></form>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -952,150 +1054,8 @@ func ScenarioForm(s *storage.Scenario, isEdit bool) templ.Component {
 	})
 }
 
-func formatMatch(m storage.JSONMap) string {
-	if len(m) == 0 {
-		return ""
-	}
-	lines := make([]string, 0, len(m))
-	for k, v := range m {
-		lines = append(lines, k+"="+v)
-	}
-	return strings.Join(lines, "\n")
-}
-
-func grafanaImportModal() templ.Component {
-	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
-		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
-		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
-			return templ_7745c5c3_CtxErr
-		}
-		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
-		if !templ_7745c5c3_IsBuffer {
-			defer func() {
-				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
-				if templ_7745c5c3_Err == nil {
-					templ_7745c5c3_Err = templ_7745c5c3_BufErr
-				}
-			}()
-		}
-		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var44 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var44 == nil {
-			templ_7745c5c3_Var44 = templ.NopComponent
-		}
-		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 70, "<dialog id=\"grafana-import-modal\"><article class=\"import-modal-content\"><header><div class=\"import-modal-title\">")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = grafanaIcon().Render(ctx, templ_7745c5c3_Buffer)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 71, "<h3>Import from Grafana Alerting</h3></div><button type=\"button\" class=\"close-modal\" onclick=\"closeGrafanaImport()\" aria-label=\"Close\">&times;</button></header><div class=\"import-modal-search\"><input type=\"text\" id=\"grafana-search\" placeholder=\"Search by name, label, or group...\" oninput=\"filterAlerts()\" autocomplete=\"off\"></div><div id=\"grafana-alert-list\" class=\"import-alert-list\"><div class=\"import-loading\"><div class=\"import-spinner\"></div>Loading alert rules...</div></div><footer><span id=\"grafana-alert-count\" class=\"import-count\"></span> <button type=\"button\" class=\"outline secondary\" onclick=\"closeGrafanaImport()\">Cancel</button></footer></article></dialog><script>\n\t\tvar _grafanaAlerts = [];\n\n\t\tfunction openGrafanaImport() {\n\t\t\tvar modal = document.getElementById('grafana-import-modal');\n\t\t\tmodal.showModal();\n\t\t\tdocument.getElementById('grafana-search').value = '';\n\t\t\tdocument.getElementById('grafana-alert-count').textContent = '';\n\t\t\tdocument.getElementById('grafana-alert-list').innerHTML =\n\t\t\t\t'<div class=\"import-loading\"><div class=\"import-spinner\"></div>Loading alert rules...</div>';\n\t\t\tfetch('/api/grafana/alerts')\n\t\t\t\t.then(function(r) {\n\t\t\t\t\tif (!r.ok) throw new Error(r.statusText);\n\t\t\t\t\treturn r.json();\n\t\t\t\t})\n\t\t\t\t.then(function(alerts) {\n\t\t\t\t\t_grafanaAlerts = alerts || [];\n\t\t\t\t\trenderAlerts(_grafanaAlerts);\n\t\t\t\t\tupdateCount(_grafanaAlerts.length, _grafanaAlerts.length);\n\t\t\t\t})\n\t\t\t\t.catch(function(err) {\n\t\t\t\t\tdocument.getElementById('grafana-alert-list').innerHTML =\n\t\t\t\t\t\t'<div class=\"import-empty\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"32\" height=\"32\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\"><circle cx=\"12\" cy=\"12\" r=\"10\"/><line x1=\"15\" y1=\"9\" x2=\"9\" y2=\"15\"/><line x1=\"9\" y1=\"9\" x2=\"15\" y2=\"15\"/></svg><p>Failed to load alerts from Grafana</p></div>';\n\t\t\t\t});\n\t\t}\n\n\t\tfunction closeGrafanaImport() {\n\t\t\tdocument.getElementById('grafana-import-modal').close();\n\t\t}\n\n\t\tfunction updateCount(shown, total) {\n\t\t\tvar el = document.getElementById('grafana-alert-count');\n\t\t\tif (shown === total) {\n\t\t\t\tel.textContent = total + ' alert rule' + (total !== 1 ? 's' : '');\n\t\t\t} else {\n\t\t\t\tel.textContent = shown + ' of ' + total + ' rules';\n\t\t\t}\n\t\t}\n\n\t\tfunction filterAlerts() {\n\t\t\tvar q = document.getElementById('grafana-search').value.toLowerCase();\n\t\t\tvar filtered = _grafanaAlerts.filter(function(a) {\n\t\t\t\tif (a.title.toLowerCase().indexOf(q) >= 0) return true;\n\t\t\t\tif ((a.rule_group || '').toLowerCase().indexOf(q) >= 0) return true;\n\t\t\t\tif ((a.folder_uid || '').toLowerCase().indexOf(q) >= 0) return true;\n\t\t\t\tvar labels = a.labels || {};\n\t\t\t\treturn Object.keys(labels).some(function(k) {\n\t\t\t\t\treturn (k + '=' + labels[k]).toLowerCase().indexOf(q) >= 0;\n\t\t\t\t});\n\t\t\t});\n\t\t\trenderAlerts(filtered);\n\t\t\tupdateCount(filtered.length, _grafanaAlerts.length);\n\t\t}\n\n\t\tfunction renderAlerts(alerts) {\n\t\t\tvar container = document.getElementById('grafana-alert-list');\n\t\t\tif (alerts.length === 0) {\n\t\t\t\tcontainer.innerHTML =\n\t\t\t\t\t'<div class=\"import-empty\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"32\" height=\"32\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\"><circle cx=\"12\" cy=\"12\" r=\"10\"/><line x1=\"8\" y1=\"12\" x2=\"16\" y2=\"12\"/></svg><p>No matching alert rules</p></div>';\n\t\t\t\treturn;\n\t\t\t}\n\n\t\t\t// Group by rule_group\n\t\t\tvar groups = {};\n\t\t\tvar groupOrder = [];\n\t\t\tfor (var i = 0; i < alerts.length; i++) {\n\t\t\t\tvar g = alerts[i].rule_group || 'Ungrouped';\n\t\t\t\tif (!groups[g]) {\n\t\t\t\t\tgroups[g] = [];\n\t\t\t\t\tgroupOrder.push(g);\n\t\t\t\t}\n\t\t\t\tgroups[g].push(alerts[i]);\n\t\t\t}\n\n\t\t\tvar html = '';\n\t\t\tfor (var gi = 0; gi < groupOrder.length; gi++) {\n\t\t\t\tvar groupName = groupOrder[gi];\n\t\t\t\tvar items = groups[groupName];\n\t\t\t\thtml += '<div class=\"import-group\">';\n\t\t\t\thtml += '<div class=\"import-group-header\">' + escapeHtml(groupName) + '<span class=\"import-group-count\">' + items.length + '</span></div>';\n\t\t\t\tfor (var j = 0; j < items.length; j++) {\n\t\t\t\t\thtml += renderAlertItem(items[j]);\n\t\t\t\t}\n\t\t\t\thtml += '</div>';\n\t\t\t}\n\t\t\tcontainer.innerHTML = html;\n\t\t}\n\n\t\tfunction renderAlertItem(a) {\n\t\t\tvar labels = a.labels || {};\n\t\t\tvar severity = labels.severity || '';\n\t\t\tvar sevClass = severity === 'critical' ? 'tag-sev-critical' : (severity === 'warning' ? 'tag-sev-warning' : 'tag-sev-info');\n\t\t\tvar stateClass = a.state === 'firing' ? 'tag-alert-firing' : (a.state === 'pending' ? 'tag-alert-pending' : 'tag-alert-normal');\n\n\t\t\tvar html = '<div class=\"import-alert-item\" onclick=\\'selectAlert(' + JSON.stringify(JSON.stringify(a)) + ')\\'>';\n\n\t\t\t// Row 1: title + state\n\t\t\thtml += '<div class=\"import-alert-header\">';\n\t\t\thtml += '<span class=\"import-alert-title\">' + escapeHtml(a.title) + '</span>';\n\t\t\thtml += '<span class=\"tag ' + stateClass + '\">' + escapeHtml(a.state || 'normal') + '</span>';\n\t\t\thtml += '</div>';\n\n\t\t\t// Row 2: meta tags\n\t\t\thtml += '<div class=\"import-alert-meta\">';\n\t\t\tif (severity) {\n\t\t\t\thtml += '<span class=\"tag ' + sevClass + '\">' + escapeHtml(severity) + '</span>';\n\t\t\t}\n\t\t\tif (a['for']) {\n\t\t\t\thtml += '<span class=\"tag tag-timeout\">for: ' + escapeHtml(a['for']) + '</span>';\n\t\t\t}\n\t\t\tvar labelPairs = Object.keys(labels).filter(function(k) { return k !== 'severity'; });\n\t\t\tfor (var i = 0; i < labelPairs.length; i++) {\n\t\t\t\tvar k = labelPairs[i];\n\t\t\t\thtml += '<span class=\"tag tag-match\">' + escapeHtml(k) + '=' + escapeHtml(labels[k]) + '</span>';\n\t\t\t}\n\t\t\thtml += '</div>';\n\n\t\t\t// Row 3: summary\n\t\t\tif (a.annotations && a.annotations.summary) {\n\t\t\t\thtml += '<div class=\"import-alert-summary\">' + escapeHtml(a.annotations.summary) + '</div>';\n\t\t\t}\n\n\t\t\thtml += '</div>';\n\t\t\treturn html;\n\t\t}\n\n\t\tfunction selectAlert(alertJson) {\n\t\t\tvar a = JSON.parse(alertJson);\n\t\t\tvar labels = a.labels || {};\n\t\t\tvar lines = ['alertname=' + a.title];\n\t\t\tfor (var k in labels) {\n\t\t\t\tlines.push(k + '=' + labels[k]);\n\t\t\t}\n\t\t\tvar textarea = document.getElementById('match-labels');\n\t\t\ttextarea.value = lines.join('\\n');\n\t\t\tautoResize(textarea);\n\t\t\tcloseGrafanaImport();\n\t\t}\n\n\t\tfunction escapeHtml(s) {\n\t\t\tvar d = document.createElement('div');\n\t\t\td.appendChild(document.createTextNode(s));\n\t\t\treturn d.innerHTML;\n\t\t}\n\t</script>")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		return nil
-	})
-}
-
-func toolPickerModal() templ.Component {
-	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
-		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
-		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
-			return templ_7745c5c3_CtxErr
-		}
-		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
-		if !templ_7745c5c3_IsBuffer {
-			defer func() {
-				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
-				if templ_7745c5c3_Err == nil {
-					templ_7745c5c3_Err = templ_7745c5c3_BufErr
-				}
-			}()
-		}
-		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var45 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var45 == nil {
-			templ_7745c5c3_Var45 = templ.NopComponent
-		}
-		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 72, "<dialog id=\"tool-picker-modal\"><article class=\"import-modal-content\"><header><div class=\"import-modal-title\">")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = toolIcon().Render(ctx, templ_7745c5c3_Buffer)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 73, "<h3>Select MCP Tools</h3></div><button type=\"button\" class=\"close-modal\" onclick=\"closeToolPicker()\" aria-label=\"Close\">&times;</button></header><div class=\"import-modal-search\"><input type=\"text\" id=\"tool-search\" placeholder=\"Search by name or description...\" oninput=\"filterTools()\" autocomplete=\"off\"></div><div id=\"tool-picker-list\" class=\"import-alert-list\"><div class=\"import-loading\"><div class=\"import-spinner\"></div>Loading tools...</div></div><footer><span id=\"tool-picker-count\" class=\"import-count\"></span><div class=\"tool-picker-actions\"><button type=\"button\" class=\"outline secondary\" onclick=\"closeToolPicker()\">Cancel</button> <button type=\"button\" onclick=\"applySelectedTools()\">Apply</button></div></footer></article></dialog><script>\n\t\tvar _allTools = [];\n\t\tvar _selectedTools = new Set();\n\n\t\tfunction openToolPicker() {\n\t\t\tvar modal = document.getElementById('tool-picker-modal');\n\t\t\tmodal.showModal();\n\t\t\tdocument.getElementById('tool-search').value = '';\n\n\t\t\t// Pre-select tools already in the input\n\t\t\tvar current = document.getElementById('allowed-tools').value;\n\t\t\t_selectedTools = new Set();\n\t\t\tif (current.trim()) {\n\t\t\t\tcurrent.split(',').forEach(function(t) {\n\t\t\t\t\tvar name = t.trim();\n\t\t\t\t\tif (name) _selectedTools.add(name);\n\t\t\t\t});\n\t\t\t}\n\n\t\t\tdocument.getElementById('tool-picker-list').innerHTML =\n\t\t\t\t'<div class=\"import-loading\"><div class=\"import-spinner\"></div>Loading tools...</div>';\n\t\t\tfetch('/api/tools')\n\t\t\t\t.then(function(r) {\n\t\t\t\t\tif (!r.ok) throw new Error(r.statusText);\n\t\t\t\t\treturn r.json();\n\t\t\t\t})\n\t\t\t\t.then(function(tools) {\n\t\t\t\t\t_allTools = tools || [];\n\t\t\t\t\trenderTools(_allTools);\n\t\t\t\t\tupdateToolCount(_allTools.length, _allTools.length);\n\t\t\t\t})\n\t\t\t\t.catch(function(err) {\n\t\t\t\t\tdocument.getElementById('tool-picker-list').innerHTML =\n\t\t\t\t\t\t'<div class=\"import-empty\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"32\" height=\"32\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\"><circle cx=\"12\" cy=\"12\" r=\"10\"/><line x1=\"15\" y1=\"9\" x2=\"9\" y2=\"15\"/><line x1=\"9\" y1=\"9\" x2=\"15\" y2=\"15\"/></svg><p>Failed to load tools</p></div>';\n\t\t\t\t});\n\t\t}\n\n\t\tfunction closeToolPicker() {\n\t\t\tdocument.getElementById('tool-picker-modal').close();\n\t\t}\n\n\t\tfunction updateToolCount(shown, total) {\n\t\t\tvar sel = _selectedTools.size;\n\t\t\tvar el = document.getElementById('tool-picker-count');\n\t\t\tvar parts = [];\n\t\t\tif (shown === total) {\n\t\t\t\tparts.push(total + ' tool' + (total !== 1 ? 's' : ''));\n\t\t\t} else {\n\t\t\t\tparts.push(shown + ' of ' + total + ' tools');\n\t\t\t}\n\t\t\tif (sel > 0) parts.push(sel + ' selected');\n\t\t\tel.textContent = parts.join(' · ');\n\t\t}\n\n\t\tfunction filterTools() {\n\t\t\tvar q = document.getElementById('tool-search').value.toLowerCase();\n\t\t\tvar filtered = _allTools.filter(function(t) {\n\t\t\t\treturn t.name.toLowerCase().indexOf(q) >= 0 ||\n\t\t\t\t\t(t.description || '').toLowerCase().indexOf(q) >= 0;\n\t\t\t});\n\t\t\trenderTools(filtered);\n\t\t\tupdateToolCount(filtered.length, _allTools.length);\n\t\t}\n\n\t\tfunction renderTools(tools) {\n\t\t\tvar container = document.getElementById('tool-picker-list');\n\t\t\tif (tools.length === 0) {\n\t\t\t\tcontainer.innerHTML =\n\t\t\t\t\t'<div class=\"import-empty\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"32\" height=\"32\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\"><circle cx=\"12\" cy=\"12\" r=\"10\"/><line x1=\"8\" y1=\"12\" x2=\"16\" y2=\"12\"/></svg><p>No matching tools</p></div>';\n\t\t\t\treturn;\n\t\t\t}\n\n\t\t\tvar html = '';\n\t\t\tfor (var i = 0; i < tools.length; i++) {\n\t\t\t\tvar t = tools[i];\n\t\t\t\tvar checked = _selectedTools.has(t.name);\n\t\t\t\thtml += '<div class=\"tool-picker-item' + (checked ? ' selected' : '') + '\" onclick=\"toggleTool(this, \\'' + escapeAttr(t.name) + '\\')\">';\n\t\t\t\thtml += '<div class=\"tool-picker-header\">';\n\t\t\t\thtml += '<label class=\"tool-picker-check\"><input type=\"checkbox\"' + (checked ? ' checked' : '') + ' onclick=\"event.stopPropagation(); toggleTool(this.closest(\\'.tool-picker-item\\'), \\'' + escapeAttr(t.name) + '\\')\"/></label>';\n\t\t\t\thtml += '<span class=\"tool-picker-name\">' + escapeHtml(t.name) + '</span>';\n\t\t\t\thtml += '</div>';\n\t\t\t\tif (t.description) {\n\t\t\t\t\thtml += '<div class=\"tool-picker-desc\">' + escapeHtml(t.description) + '</div>';\n\t\t\t\t}\n\t\t\t\thtml += '</div>';\n\t\t\t}\n\t\t\tcontainer.innerHTML = html;\n\t\t}\n\n\t\tfunction toggleTool(el, name) {\n\t\t\tif (_selectedTools.has(name)) {\n\t\t\t\t_selectedTools.delete(name);\n\t\t\t\tel.classList.remove('selected');\n\t\t\t\tel.querySelector('input[type=checkbox]').checked = false;\n\t\t\t} else {\n\t\t\t\t_selectedTools.add(name);\n\t\t\t\tel.classList.add('selected');\n\t\t\t\tel.querySelector('input[type=checkbox]').checked = true;\n\t\t\t}\n\t\t\tupdateToolCount(\n\t\t\t\tdocument.querySelectorAll('#tool-picker-list .tool-picker-item').length,\n\t\t\t\t_allTools.length\n\t\t\t);\n\t\t}\n\n\t\tfunction applySelectedTools() {\n\t\t\tdocument.getElementById('allowed-tools').value = Array.from(_selectedTools).join(', ');\n\t\t\tcloseToolPicker();\n\t\t}\n\n\t\tfunction escapeAttr(s) {\n\t\t\treturn s.replace(/'/g, \"\\\\'\").replace(/\"/g, '&quot;');\n\t\t}\n\t</script>")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		return nil
-	})
-}
-
-func toolIcon() templ.Component {
-	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
-		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
-		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
-			return templ_7745c5c3_CtxErr
-		}
-		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
-		if !templ_7745c5c3_IsBuffer {
-			defer func() {
-				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
-				if templ_7745c5c3_Err == nil {
-					templ_7745c5c3_Err = templ_7745c5c3_BufErr
-				}
-			}()
-		}
-		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var46 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var46 == nil {
-			templ_7745c5c3_Var46 = templ.NopComponent
-		}
-		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 74, "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z\"></path></svg>")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		return nil
-	})
-}
-
-func grafanaIcon() templ.Component {
-	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
-		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
-		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
-			return templ_7745c5c3_CtxErr
-		}
-		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
-		if !templ_7745c5c3_IsBuffer {
-			defer func() {
-				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
-				if templ_7745c5c3_Err == nil {
-					templ_7745c5c3_Err = templ_7745c5c3_BufErr
-				}
-			}()
-		}
-		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var47 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var47 == nil {
-			templ_7745c5c3_Var47 = templ.NopComponent
-		}
-		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 75, "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9\"></path> <path d=\"M10.3 21a1.94 1.94 0 0 0 3.4 0\"></path> <line x1=\"12\" y1=\"2\" x2=\"12\" y2=\"4\"></line></svg>")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		return nil
-	})
-}
-
-func emptyIcon() templ.Component {
+// --- dialogs ---------------------------------------------------------------
+func toolPickerDialog() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -1116,7 +1076,110 @@ func emptyIcon() templ.Component {
 			templ_7745c5c3_Var48 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 76, "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"64\" height=\"64\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z\"></path> <polyline points=\"14 2 14 8 20 8\"></polyline> <line x1=\"16\" y1=\"13\" x2=\"8\" y2=\"13\"></line> <line x1=\"16\" y1=\"17\" x2=\"8\" y2=\"17\"></line> <line x1=\"10\" y1=\"9\" x2=\"8\" y2=\"9\"></line></svg>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 77, "<dialog id=\"tool-picker\" aria-labelledby=\"tool-picker-title\"><div class=\"dialog-head\"><h2 id=\"tool-picker-title\" class=\"form-section-title\">MCP tools</h2><button type=\"button\" class=\"icon-button\" data-dialog-close aria-label=\"Close\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = closeIcon().Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 78, "</button></div><div class=\"dialog-body\"><input type=\"search\" data-tool-search placeholder=\"Search tools\" aria-label=\"Search tools\" autocomplete=\"off\"><p class=\"help\" data-tool-status></p><div class=\"tool-list\" data-tool-list></div></div><div class=\"dialog-foot\"><button type=\"button\" class=\"btn btn-sm\" data-tool-clear>Allow all tools</button> <button type=\"button\" class=\"btn btn-primary btn-sm\" data-dialog-close>Done</button></div></dialog>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		return nil
+	})
+}
+
+func grafanaImportDialog() templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
+		}
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var49 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var49 == nil {
+			templ_7745c5c3_Var49 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 79, "<dialog id=\"grafana-import\" aria-labelledby=\"grafana-import-title\"><div class=\"dialog-head\"><h2 id=\"grafana-import-title\" class=\"form-section-title\">Grafana alert rules</h2><button type=\"button\" class=\"icon-button\" data-dialog-close aria-label=\"Close\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = closeIcon().Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 80, "</button></div><div class=\"dialog-body\"><input type=\"search\" data-grafana-search placeholder=\"Search by name, group or label\" aria-label=\"Search alert rules\" autocomplete=\"off\"><p class=\"help\" data-grafana-status></p><div class=\"tool-list\" data-grafana-list></div></div><div class=\"dialog-foot\"><p class=\"help\">Selecting a rule replaces the labels above with its own.</p><button type=\"button\" class=\"btn btn-sm\" data-dialog-close>Cancel</button></div></dialog>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		return nil
+	})
+}
+
+func trashIcon() templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
+		}
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var50 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var50 == nil {
+			templ_7745c5c3_Var50 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 81, "<svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.25\" aria-hidden=\"true\"><path d=\"M4.4 6.4h15.2M9.4 6.4V4.4h5.2v2M6.8 6.4l.9 13.2h8.6l.9-13.2M10.2 9.8v6.4M13.8 9.8v6.4\"></path></svg>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		return nil
+	})
+}
+
+func closeIcon() templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
+		}
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var51 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var51 == nil {
+			templ_7745c5c3_Var51 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 82, "<svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" aria-hidden=\"true\"><path d=\"M6 6l12 12M18 6L6 18\"></path></svg>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

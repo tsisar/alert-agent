@@ -32,7 +32,7 @@ func (h *Handler) newScenario(w http.ResponseWriter, r *http.Request) {
 		Timeout:  "2m",
 		Priority: "normal",
 	}
-	if err := templates.ScenarioFormPage(s, false).Render(r.Context(), w); err != nil {
+	if err := templates.ScenarioFormPage(s, false, "").Render(r.Context(), w); err != nil {
 		log.Errorf("render new scenario page: %v", err)
 	}
 }
@@ -40,15 +40,59 @@ func (h *Handler) newScenario(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) createScenario(w http.ResponseWriter, r *http.Request) {
 	s, err := parseScenarioForm(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		h.renderFormError(w, r, submittedScenario(r), false, err.Error())
 		return
 	}
 	if err := h.scenarios.Create(s); err != nil {
-		http.Error(w, "failed to create scenario", http.StatusInternalServerError)
 		log.Errorf("create scenario: %v", err)
+		h.renderFormError(w, r, s, false, saveErrorMessage(err, s.Name))
 		return
 	}
 	h.listScenarios(w, r)
+}
+
+// renderFormError re-renders the editor with the submitted values and a stated
+// reason. htmx does not swap a plain error response, so returning one here
+// would look to the user like the save silently did nothing.
+func (h *Handler) renderFormError(w http.ResponseWriter, r *http.Request, s *storage.Scenario, isEdit bool, msg string) {
+	w.Header().Set("HX-Retarget", "body")
+	w.Header().Set("HX-Reswap", "innerHTML")
+	// The form's hx-push-url points at the list; a rejected save must not
+	// leave the editor sitting under the /scenarios URL.
+	w.Header().Set("HX-Push-Url", "false")
+	w.WriteHeader(http.StatusOK)
+	if err := templates.ScenarioFormPage(s, isEdit, msg).Render(r.Context(), w); err != nil {
+		log.Errorf("render scenario form error: %v", err)
+	}
+}
+
+// submittedScenario rebuilds a scenario from the raw form so a rejected save
+// keeps every field the user typed, including the invalid one.
+func submittedScenario(r *http.Request) *storage.Scenario {
+	match, _ := parseMatchLabels(r.FormValue("match"))
+	orderIndex, _ := strconv.Atoi(r.FormValue("order_index"))
+	return &storage.Scenario{
+		Name:            strings.TrimSpace(r.FormValue("name")),
+		OrderIndex:      orderIndex,
+		Match:           match,
+		Prompt:          r.FormValue("prompt"),
+		Tools:           parseToolsList(r.FormValue("tools")),
+		ChannelTelegram: strings.TrimSpace(r.FormValue("channel_telegram")),
+		ChannelSlack:    strings.TrimSpace(r.FormValue("channel_slack")),
+		Timeout:         strings.TrimSpace(r.FormValue("timeout")),
+		Priority:        r.FormValue("priority"),
+		SendImages:      r.FormValue("send_images") == "on",
+	}
+}
+
+// saveErrorMessage names the problem and the way out, rather than echoing a
+// driver error the user cannot act on.
+func saveErrorMessage(err error, name string) string {
+	msg := strings.ToLower(err.Error())
+	if strings.Contains(msg, "unique") || strings.Contains(msg, "duplicate") {
+		return fmt.Sprintf("A scenario named %q already exists. Pick another name, or edit the existing one.", name)
+	}
+	return "The scenario could not be saved. The server log has the details."
 }
 
 func (h *Handler) editScenario(w http.ResponseWriter, r *http.Request) {
@@ -74,7 +118,7 @@ func (h *Handler) editScenario(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "scenario not found", http.StatusNotFound)
 		return
 	}
-	if err := templates.ScenarioFormPage(target, true).Render(r.Context(), w); err != nil {
+	if err := templates.ScenarioFormPage(target, true, "").Render(r.Context(), w); err != nil {
 		log.Errorf("render edit scenario page: %v", err)
 	}
 }
@@ -108,7 +152,7 @@ func (h *Handler) copyScenario(w http.ResponseWriter, r *http.Request) {
 	dup.Name = copyName(source.Name, scenarios)
 	dup.OrderIndex = 0
 
-	if err := templates.ScenarioFormPage(&dup, false).Render(r.Context(), w); err != nil {
+	if err := templates.ScenarioFormPage(&dup, false, "").Render(r.Context(), w); err != nil {
 		log.Errorf("render copy scenario page: %v", err)
 	}
 }
@@ -133,13 +177,15 @@ func (h *Handler) updateScenario(w http.ResponseWriter, r *http.Request) {
 	}
 	s, err := parseScenarioForm(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		bad := submittedScenario(r)
+		bad.ID = uint(id)
+		h.renderFormError(w, r, bad, true, err.Error())
 		return
 	}
 	s.ID = uint(id)
 	if err := h.scenarios.Update(s); err != nil {
-		http.Error(w, "failed to update scenario", http.StatusInternalServerError)
 		log.Errorf("update scenario: %v", err)
+		h.renderFormError(w, r, s, true, saveErrorMessage(err, s.Name))
 		return
 	}
 	h.listScenarios(w, r)
@@ -309,7 +355,7 @@ func parseScenarioForm(r *http.Request) (*storage.Scenario, error) {
 
 	name := strings.TrimSpace(r.FormValue("name"))
 	if name == "" {
-		return nil, fmt.Errorf("name is required")
+		return nil, fmt.Errorf("Give the scenario a name — it identifies the path in logs, exports and notifications.")
 	}
 
 	orderIndex, _ := strconv.Atoi(r.FormValue("order_index"))
@@ -321,7 +367,7 @@ func parseScenarioForm(r *http.Request) (*storage.Scenario, error) {
 
 	prompt := strings.TrimSpace(r.FormValue("prompt"))
 	if prompt == "" {
-		return nil, fmt.Errorf("prompt is required")
+		return nil, fmt.Errorf("The prompt is what the agent is told to do for these alerts; it cannot be empty.")
 	}
 
 	tools := parseToolsList(r.FormValue("tools"))
@@ -331,7 +377,7 @@ func parseScenarioForm(r *http.Request) (*storage.Scenario, error) {
 		timeout = "2m"
 	}
 	if _, err := time.ParseDuration(timeout); err != nil {
-		return nil, fmt.Errorf("invalid timeout %q: %w", timeout, err)
+		return nil, fmt.Errorf("%q is not a duration. Write it like 30s, 2m or 1h30m.", timeout)
 	}
 
 	priority := r.FormValue("priority")
@@ -366,7 +412,7 @@ func parseMatchLabels(raw string) (storage.JSONMap, error) {
 		}
 		k, v, ok := strings.Cut(line, "=")
 		if !ok {
-			return nil, fmt.Errorf("invalid match line %q: expected key=value", line)
+			return nil, fmt.Errorf("%q is not a label. Each match label is written as key=value.", line)
 		}
 		m[strings.TrimSpace(k)] = strings.TrimSpace(v)
 	}

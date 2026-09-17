@@ -1,0 +1,623 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-18T00:00:00Z",
+  "title": "Design System: Alert Agent",
+  "extensions": {
+    "colorMeta": {
+      "signal": {
+        "role": "primary",
+        "displayName": "Instrument Teal",
+        "darkValue": "#45b8c2",
+        "purpose": "The live-state hue: primary action, active nav seat, focus, traced path, caret.",
+        "tonalRamp": [
+          "#00121b",
+          "#002f38",
+          "#004e56",
+          "#0b6e77",
+          "#3c909a",
+          "#61b4bd",
+          "#86d9e2",
+          "#acffff"
+        ]
+      },
+      "signal-strong": {
+        "role": "primary",
+        "displayName": "Instrument Teal Deep",
+        "darkValue": "#6fd3db",
+        "purpose": "Hover and pressed fill for the primary action.",
+        "tonalRamp": [
+          "#001118",
+          "#002e34",
+          "#004c53",
+          "#296c73",
+          "#4d8e95",
+          "#70b2b9",
+          "#94d6de",
+          "#b9fcff"
+        ]
+      },
+      "signal-edge": {
+        "role": "primary",
+        "displayName": "Instrument Teal Edge",
+        "darkValue": "#45b8c2",
+        "purpose": "The 1-3px edge variant: focus ring, live row edge, rail and nav seats.",
+        "tonalRamp": [
+          "#00131e",
+          "#00303b",
+          "#00505b",
+          "#00717c",
+          "#13939e",
+          "#48b7c2",
+          "#71dce8",
+          "#97ffff"
+        ]
+      },
+      "signal-wash": {
+        "role": "primary",
+        "displayName": "Teal Wash",
+        "darkValue": "#11302f",
+        "purpose": "The only tinted background: probe node ring, checked switch track, ::selection.",
+        "tonalRamp": [
+          "#030d0e",
+          "#1b2828",
+          "#384546",
+          "#566465",
+          "#778687",
+          "#99a8a9",
+          "#bdcdce",
+          "#e2f2f3"
+        ]
+      },
+      "mark-critical": {
+        "role": "secondary",
+        "displayName": "Signal Red",
+        "darkValue": "#f0705f",
+        "purpose": "Critical classification mark (filled triangle).",
+        "tonalRamp": [
+          "#370000",
+          "#5d0000",
+          "#840000",
+          "#ab2d21",
+          "#d25344",
+          "#fb7766",
+          "#ff9c89",
+          "#ffc2ad"
+        ]
+      },
+      "mark-high": {
+        "role": "secondary",
+        "displayName": "Warning Amber",
+        "darkValue": "#dda43f",
+        "purpose": "High classification mark (half-filled square); also stale tools, dirty stages, no-match probe.",
+        "tonalRamp": [
+          "#230000",
+          "#421700",
+          "#633600",
+          "#855600",
+          "#a97732",
+          "#ce9a56",
+          "#f4be7a",
+          "#ffe49e"
+        ]
+      },
+      "mark-normal": {
+        "role": "secondary",
+        "displayName": "Slate Mark",
+        "darkValue": "#8a9793",
+        "purpose": "Normal classification mark (hollow square).",
+        "tonalRamp": [
+          "#040d0b",
+          "#1c2825",
+          "#394542",
+          "#576461",
+          "#788683",
+          "#9aa9a5",
+          "#becdc9",
+          "#e3f2ef"
+        ]
+      },
+      "mark-ok": {
+        "role": "secondary",
+        "displayName": "Verified Green",
+        "darkValue": "#5bbd85",
+        "purpose": "Saved state on prompt stages.",
+        "tonalRamp": [
+          "#001500",
+          "#00320e",
+          "#00512b",
+          "#257249",
+          "#4a9469",
+          "#6eb88b",
+          "#92ddaf",
+          "#b7ffd3"
+        ]
+      },
+      "danger": {
+        "role": "tertiary",
+        "displayName": "Alarm Red",
+        "darkValue": "#f0705f",
+        "purpose": "Destructive actions, invalid fields, error notices.",
+        "tonalRamp": [
+          "#370000",
+          "#5d0000",
+          "#840000",
+          "#ab2d21",
+          "#d25344",
+          "#fb7766",
+          "#ff9c89",
+          "#ffc2ad"
+        ]
+      },
+      "danger-wash": {
+        "role": "tertiary",
+        "displayName": "Alarm Wash",
+        "darkValue": "#2a1512",
+        "purpose": "Hover fill for danger buttons and error notice ground.",
+        "tonalRamp": [
+          "#130807",
+          "#2e211f",
+          "#4c3e3c",
+          "#6c5d5b",
+          "#8e7e7b",
+          "#b1a19e",
+          "#d6c5c2",
+          "#fceae7"
+        ]
+      },
+      "ground": {
+        "role": "neutral",
+        "displayName": "Drafting Film",
+        "darkValue": "#0d1211",
+        "purpose": "The body field, carrying the hairline grid. Never used on a component.",
+        "tonalRamp": [
+          "#0a0c0b",
+          "#232625",
+          "#404342",
+          "#5f6261",
+          "#808382",
+          "#a3a6a5",
+          "#c7cac9",
+          "#ecefee"
+        ]
+      },
+      "panel": {
+        "role": "neutral",
+        "displayName": "Panel Sheet",
+        "darkValue": "#141a19",
+        "purpose": "Every raised surface: field, form section, strip, dialog, stage.",
+        "tonalRamp": [
+          "#0a0b0b",
+          "#242525",
+          "#414242",
+          "#606261",
+          "#818382",
+          "#a4a5a4",
+          "#c8cac9",
+          "#edefee"
+        ]
+      },
+      "panel-sunk": {
+        "role": "neutral",
+        "displayName": "Sunk Panel",
+        "darkValue": "#0a0e0e",
+        "purpose": "Recessed areas: heads and feet, rank column, input interiors, row hover.",
+        "tonalRamp": [
+          "#090c0b",
+          "#232625",
+          "#404342",
+          "#5f6261",
+          "#808382",
+          "#a2a6a5",
+          "#c6cac9",
+          "#ebefee"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Graphite Ink",
+        "darkValue": "#dde5e2",
+        "purpose": "Body text and path names.",
+        "tonalRamp": [
+          "#070c0c",
+          "#202725",
+          "#3d4442",
+          "#5c6362",
+          "#7d8483",
+          "#9fa7a6",
+          "#c3cbca",
+          "#e8f1ef"
+        ]
+      },
+      "ink-muted": {
+        "role": "neutral",
+        "displayName": "Muted Ink",
+        "darkValue": "#aab7b3",
+        "purpose": "Secondary prose, help text, control labels at rest.",
+        "tonalRamp": [
+          "#050d0c",
+          "#1e2725",
+          "#3b4442",
+          "#596462",
+          "#7a8583",
+          "#9ca8a6",
+          "#c0ccca",
+          "#e5f2ef"
+        ]
+      },
+      "ink-faint": {
+        "role": "neutral",
+        "displayName": "Faint Ink",
+        "darkValue": "#93a09c",
+        "purpose": "Engraved micro-labels, placeholders, quiet buttons.",
+        "tonalRamp": [
+          "#050d0b",
+          "#1d2825",
+          "#394542",
+          "#586461",
+          "#798682",
+          "#9ba8a5",
+          "#bfcdc9",
+          "#e4f2ee"
+        ]
+      },
+      "rule": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "darkValue": "#2b3533",
+        "purpose": "Default container border.",
+        "tonalRamp": [
+          "#060d0b",
+          "#1f2725",
+          "#3c4442",
+          "#5b6361",
+          "#7b8582",
+          "#9ea7a5",
+          "#c2ccc9",
+          "#e7f1ee"
+        ]
+      },
+      "rule-strong": {
+        "role": "neutral",
+        "displayName": "Committed Rule",
+        "darkValue": "#46534f",
+        "purpose": "Control and input borders, the rank trunk.",
+        "tonalRamp": [
+          "#040d0b",
+          "#1c2825",
+          "#394542",
+          "#586461",
+          "#788682",
+          "#9ba9a5",
+          "#becdc9",
+          "#e4f2ee"
+        ]
+      },
+      "rule-faint": {
+        "role": "neutral",
+        "displayName": "Ghost Rule",
+        "darkValue": "#1e2625",
+        "purpose": "Internal divisions: row separators, segment dividers, the body grid.",
+        "tonalRamp": [
+          "#080c0b",
+          "#212625",
+          "#3e4342",
+          "#5d6361",
+          "#7e8482",
+          "#a0a7a5",
+          "#c4cbc9",
+          "#e9f0ee"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "The page title, one per screen."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Form-section and dialog headings, empty-state titles, mono readout values."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Default text and path names; tabular numerals globally."
+      },
+      "small": {
+        "displayName": "Small",
+        "purpose": "Controls, inputs, page lede, secondary prose."
+      },
+      "label": {
+        "displayName": "Engraved Label",
+        "purpose": "Field names, readout captions, column heads, classification marks, stage state."
+      },
+      "mono": {
+        "displayName": "Mono",
+        "purpose": "Machine values: label pairs, tool names, durations, channel IDs, ranks."
+      }
+    },
+    "shadows": [
+      {
+        "name": "seated-press",
+        "value": "inset 0 1px 2px rgb(0 0 0 / 0.16)",
+        "purpose": "Button :active. The control takes the press as material, not colour."
+      },
+      {
+        "name": "seated-segment",
+        "value": "inset 0 2px 3px rgb(0 0 0 / 0.12)",
+        "purpose": "The chosen segment of a segmented control, pressed into the panel."
+      },
+      {
+        "name": "live-edge",
+        "value": "inset 3px 0 0 var(--signal-edge), inset 0 -1px 0 var(--signal-edge)",
+        "purpose": "The path row a match probe traced."
+      },
+      {
+        "name": "nav-seat",
+        "value": "inset 0 -2px 0 var(--signal-edge)",
+        "purpose": "The current page in the header nav."
+      },
+      {
+        "name": "probe-node-ring",
+        "value": "0 0 0 3px var(--signal-wash)",
+        "purpose": "The rank node of a live path."
+      },
+      {
+        "name": "pointer-focus-ring",
+        "value": "0 0 0 2px color-mix(in srgb, var(--signal-edge) 60%, transparent)",
+        "purpose": "Mouse focus on inputs, kept distinct from the keyboard outline."
+      },
+      {
+        "name": "keyboard-focus",
+        "value": "outline: 2px solid var(--focus); outline-offset: 2px",
+        "purpose": "The global :focus-visible ring. Never removed."
+      },
+      {
+        "name": "dialog-lift",
+        "value": "0 18px 44px rgb(0 0 0 / 0.22)",
+        "purpose": "The only true elevation in the system, on <dialog> over a blurred backdrop."
+      }
+    ],
+    "motion": [
+      {
+        "name": "speed",
+        "value": "160ms",
+        "purpose": "Default duration for colour, border and shadow transitions."
+      },
+      {
+        "name": "ease",
+        "value": "cubic-bezier(0.22, 0.61, 0.36, 1)",
+        "purpose": "Default easing; decelerating, instrument-like."
+      },
+      {
+        "name": "trace",
+        "value": "420ms cubic-bezier(0.22, 0.61, 0.36, 1)",
+        "purpose": "The probe tracer running down the rank trunk to the winning node."
+      },
+      {
+        "name": "spin",
+        "value": "900ms linear infinite",
+        "purpose": "The inline working spinner inside a busy button."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "@media (prefers-reduced-motion: reduce) -> 0.01ms, spinner animation none",
+        "purpose": "All motion is disabled under reduced-motion; no state depends on it."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "refold",
+        "value": "1080px"
+      },
+      {
+        "name": "stack",
+        "value": "720px"
+      }
+    ],
+    "themes": {
+      "strategy": "Light and dark are both normative. The document carries data-theme on <html>; an inline head script applies localStorage.theme, falling back to the OS prefers-color-scheme, before first paint. Each theme redefines the same custom-property names; no component reads a theme-specific value directly.",
+      "light": "canonical values live in DESIGN.md frontmatter",
+      "dark": "see colorMeta.*.darkValue"
+    },
+    "surfaceTexture": {
+      "name": "drafting-grid",
+      "value": "linear-gradient(to right, var(--rule-faint) 1px, transparent 1px), linear-gradient(to bottom, var(--rule-faint) 1px, transparent 1px); background-size: 88px 88px (56px below 720px)",
+      "purpose": "The body's drafting-film ground. This is a deliberate world choice, not decoration: the panel is a technical drawing and the grid is its sheet. Automated scanners flag it as an advisory 'decorative grid background'; the advisory is accepted and the grid must not be silently stripped."
+    }
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The single primary action on a surface: New Scenario, Save changes, Save stage.",
+      "html": "<button class=\"ds-btn ds-btn-primary\">New scenario</button>",
+      "css": ".ds-btn { display:inline-flex; align-items:center; justify-content:center; gap:0.5rem; min-height:34px; padding:0.4rem 0.85rem; font-family:'Overpass',ui-sans-serif,system-ui,sans-serif; font-size:0.8125rem; font-weight:500; line-height:1.2; color:var(--ink,#141a19); background:var(--panel,#f7f9f8); border:1px solid var(--rule-strong,#9fada9); border-radius:2px; cursor:pointer; transition:background-color 160ms cubic-bezier(0.22,0.61,0.36,1), border-color 160ms cubic-bezier(0.22,0.61,0.36,1), box-shadow 160ms cubic-bezier(0.22,0.61,0.36,1); } .ds-btn-primary { color:var(--panel,#f7f9f8); background:var(--signal,#0d6f78); border-color:var(--signal-strong,#0a565d); } .ds-btn-primary:hover { background:var(--signal-strong,#0a565d); border-color:var(--signal-strong,#0a565d); } .ds-btn-primary:active { box-shadow:inset 0 1px 2px rgb(0 0 0 / 0.16); } .ds-btn-primary:focus-visible { outline:2px solid var(--signal-edge,#12939e); outline-offset:2px; }"
+    },
+    {
+      "name": "Default Button",
+      "kind": "button",
+      "refersTo": "button",
+      "description": "The standard achromatic control: Edit, Copy, Trace, Export YAML.",
+      "html": "<button class=\"ds-btn2\">Trace</button>",
+      "css": ".ds-btn2 { display:inline-flex; align-items:center; justify-content:center; gap:0.5rem; min-height:34px; padding:0.4rem 0.85rem; font-family:'Overpass',ui-sans-serif,system-ui,sans-serif; font-size:0.8125rem; font-weight:500; color:var(--ink,#141a19); background:var(--panel,#f7f9f8); border:1px solid var(--rule-strong,#9fada9); border-radius:2px; cursor:pointer; transition:background-color 160ms cubic-bezier(0.22,0.61,0.36,1), border-color 160ms cubic-bezier(0.22,0.61,0.36,1); } .ds-btn2:hover { background:var(--panel-sunk,#e7ebea); border-color:var(--ink-faint,#56625f); } .ds-btn2:active { box-shadow:inset 0 1px 2px rgb(0 0 0 / 0.16); } .ds-btn2:disabled { color:var(--ink-faint,#56625f); background:transparent; border-color:var(--rule,#c5cfcc); cursor:not-allowed; } .ds-btn2:focus-visible { outline:2px solid var(--signal-edge,#12939e); outline-offset:2px; }"
+    },
+    {
+      "name": "Machine Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Sunk field with a teal caret; the .code variant carries machine values in mono.",
+      "html": "<label class=\"ds-eng\" for=\"ds-probe\">Test an alert</label><input id=\"ds-probe\" class=\"ds-input ds-code\" type=\"text\" placeholder=\"alertname=HighCPU, severity=critical\">",
+      "css": ".ds-eng { display:block; margin-bottom:0.5rem; font-family:'Overpass Mono',ui-monospace,monospace; font-size:0.6875rem; font-weight:600; letter-spacing:0.14em; text-transform:uppercase; color:var(--ink-faint,#56625f); } .ds-input { width:100%; padding:0.4rem 0.6rem; font-family:'Overpass',ui-sans-serif,system-ui,sans-serif; font-size:0.8125rem; color:var(--ink,#141a19); background:var(--panel-sunk,#e7ebea); border:1px solid var(--rule-strong,#9fada9); border-radius:2px; caret-color:var(--signal,#0d6f78); transition:border-color 160ms cubic-bezier(0.22,0.61,0.36,1), box-shadow 160ms cubic-bezier(0.22,0.61,0.36,1); } .ds-code { font-family:'Overpass Mono',ui-monospace,monospace; } .ds-input::placeholder { color:var(--ink-faint,#56625f); } .ds-input:hover { border-color:var(--ink-faint,#56625f); } .ds-input:focus { border-color:var(--signal-edge,#12939e); box-shadow:0 0 0 2px color-mix(in srgb, var(--signal-edge,#12939e) 60%, transparent); } .ds-input:focus-visible { outline:2px solid var(--signal-edge,#12939e); outline-offset:2px; }"
+    },
+    {
+      "name": "Label Chip",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "A key=value match label, a destination channel, or an open/stale variant.",
+      "html": "<div class=\"ds-chips\"><span class=\"ds-chip\"><span class=\"ds-chip-key\">severity</span>critical</span><span class=\"ds-chip\" data-open=\"true\">catch-all — anything unmatched above</span><span class=\"ds-chip\" data-stale=\"true\">grafana__old_tool</span></div>",
+      "css": ".ds-chips { display:flex; flex-wrap:wrap; gap:0.25rem; } .ds-chip { display:inline-flex; align-items:center; gap:4px; padding:1px 6px; font-family:'Overpass Mono',ui-monospace,monospace; font-size:0.6875rem; color:var(--ink-muted,#414b49); background:var(--panel-sunk,#e7ebea); border:1px solid var(--rule,#c5cfcc); border-radius:2px; white-space:nowrap; } .ds-chip-key { color:var(--ink-faint,#56625f); } .ds-chip-key::after { content:'='; margin:0 1px; color:var(--rule-strong,#9fada9); } .ds-chip[data-open='true'] { border-style:dashed; background:transparent; color:var(--ink-faint,#56625f); } .ds-chip[data-stale='true'] { color:var(--mark-high,#8a5a09); border-color:color-mix(in srgb, var(--mark-high,#8a5a09) 55%, var(--rule,#c5cfcc)); }"
+    },
+    {
+      "name": "Classification Mark",
+      "kind": "custom",
+      "refersTo": "mark",
+      "description": "The fixed engraved classification set. Geometry reads without colour; never a pill.",
+      "html": "<div style=\"display:flex;gap:1.25rem\"><span class=\"ds-mark\" data-level=\"critical\">Critical</span><span class=\"ds-mark\" data-level=\"high\">High</span><span class=\"ds-mark\">Normal</span></div>",
+      "css": ".ds-mark { display:inline-flex; align-items:center; gap:5px; font-family:'Overpass Mono',ui-monospace,monospace; font-size:0.6875rem; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:var(--mark-normal,#55625f); } .ds-mark::before { content:''; width:8px; height:8px; border:1px solid currentColor; flex:none; } .ds-mark[data-level='critical'] { color:var(--mark-critical,#a5271c); } .ds-mark[data-level='critical']::before { width:9px; height:9px; border:0; background:currentColor; clip-path:polygon(50% 0, 100% 100%, 0 100%); } .ds-mark[data-level='high'] { color:var(--mark-high,#8a5a09); } .ds-mark[data-level='high']::before { background:linear-gradient(to top right, currentColor 0 50%, transparent 50% 100%); }"
+    },
+    {
+      "name": "Path Row",
+      "kind": "custom",
+      "refersTo": "rank-node",
+      "description": "The signature component: one scenario as a signal path — rank trunk, node, edge mark, three hairline-divided segments.",
+      "html": "<div class=\"ds-field\"><article class=\"ds-path\"><div class=\"ds-rank\"><span class=\"ds-node\">1</span><span class=\"ds-mark2\" data-level=\"critical\" title=\"Critical priority\"></span></div><div class=\"ds-seg\"><a class=\"ds-path-name\" href=\"#\">Database saturation</a><span class=\"ds-path-prompt\">Check connection pool, slow queries and disk before escalating…</span></div><div class=\"ds-seg\"><span class=\"ds-chip2\"><i>alertname</i>PostgresHighConn</span><span class=\"ds-chip2\"><i>severity</i>critical</span></div><div class=\"ds-seg ds-seg-last\"><div class=\"ds-facts\"><span><b>Tools</b>4</span><span><b>Budget</b>5m</span></div><span class=\"ds-chip2\"><i>slack</i>#db-oncall</span></div></article><article class=\"ds-path ds-live\"><div class=\"ds-rank\"><span class=\"ds-node\">2</span><span class=\"ds-mark2\" title=\"Normal priority\"></span></div><div class=\"ds-seg\"><a class=\"ds-path-name\" href=\"#\">Catch-all</a><span class=\"ds-path-prompt\">Investigate the alert and report the likely cause.</span></div><div class=\"ds-seg\"><span class=\"ds-chip2 ds-open\">catch-all — anything unmatched above</span></div><div class=\"ds-seg ds-seg-last\"><div class=\"ds-facts\"><span><b>Tools</b>all</span><span><b>Budget</b>2m</span></div><span class=\"ds-chip2 ds-open\">default channels</span></div></article></div>",
+      "css": ".ds-field { border:1px solid var(--rule,#c5cfcc); border-radius:0 0 2px 2px; background:var(--panel,#f7f9f8); overflow:hidden; font-family:'Overpass',ui-sans-serif,system-ui,sans-serif; } .ds-path { display:grid; grid-template-columns:52px minmax(120px,1fr) minmax(140px,1.1fr) minmax(130px,0.9fr); align-items:stretch; border-bottom:1px solid var(--rule-faint,#dae1df); transition:background-color 160ms cubic-bezier(0.22,0.61,0.36,1); } .ds-path:last-child { border-bottom:0; } .ds-path:hover { background:var(--panel-sunk,#e7ebea); } .ds-rank { position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.5rem; padding:0.75rem 0; border-right:1px solid var(--rule-faint,#dae1df); background:var(--panel-sunk,#e7ebea); } .ds-rank::before { content:''; position:absolute; left:50%; top:0; bottom:0; width:1px; margin-left:-0.5px; background:var(--rule-strong,#9fada9); } .ds-path:first-child .ds-rank::before { top:50%; } .ds-path:last-child .ds-rank::before { bottom:50%; } .ds-node { position:relative; z-index:1; display:flex; align-items:center; justify-content:center; width:22px; height:22px; border:1px solid var(--rule-strong,#9fada9); border-radius:999px; background:var(--panel,#f7f9f8); font-family:'Overpass Mono',ui-monospace,monospace; font-size:0.6875rem; font-weight:600; color:var(--ink-muted,#414b49); } .ds-mark2 { position:relative; z-index:1; display:block; width:8px; height:8px; border:1px solid var(--mark-normal,#55625f); background:var(--panel-sunk,#e7ebea); } .ds-mark2[data-level='critical'] { border:0; width:9px; height:9px; background:var(--mark-critical,#a5271c); clip-path:polygon(50% 0, 100% 100%, 0 100%); } .ds-seg { display:flex; flex-direction:column; gap:0.5rem; padding:0.75rem 1rem; border-right:1px solid var(--rule-faint,#dae1df); min-width:0; } .ds-seg-last { border-right:0; } .ds-path-name { color:var(--ink,#141a19); text-decoration:none; font-weight:600; font-size:0.9375rem; } .ds-path-name:hover { text-decoration:underline; text-decoration-color:var(--signal,#0d6f78); } .ds-path-prompt { color:var(--ink-faint,#56625f); font-size:0.6875rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; } .ds-chip2 { display:inline-flex; align-items:center; gap:4px; align-self:flex-start; padding:1px 6px; font-family:'Overpass Mono',ui-monospace,monospace; font-size:0.6875rem; color:var(--ink-muted,#414b49); background:var(--panel-sunk,#e7ebea); border:1px solid var(--rule,#c5cfcc); border-radius:2px; } .ds-chip2 i { font-style:normal; color:var(--ink-faint,#56625f); } .ds-chip2 i::after { content:'='; margin:0 1px; color:var(--rule-strong,#9fada9); } .ds-open { border-style:dashed; background:transparent; color:var(--ink-faint,#56625f); } .ds-facts { display:flex; flex-wrap:wrap; gap:0.25rem 1rem; font-family:'Overpass Mono',ui-monospace,monospace; font-size:0.6875rem; color:var(--ink-muted,#414b49); } .ds-facts b { font-weight:600; letter-spacing:0.12em; text-transform:uppercase; color:var(--ink-faint,#56625f); margin-right:5px; } .ds-live { box-shadow:inset 3px 0 0 var(--signal-edge,#12939e), inset 0 -1px 0 var(--signal-edge,#12939e); } .ds-live .ds-node { border-color:var(--signal-edge,#12939e); color:var(--signal,#0d6f78); box-shadow:0 0 0 3px var(--signal-wash,#d9e9ea); } .ds-live .ds-mark2 { border-style:dashed; }"
+    },
+    {
+      "name": "Instrument Strip",
+      "kind": "custom",
+      "refersTo": "panel-surface",
+      "description": "The readout + match probe + primary action strip that sits above the field.",
+      "html": "<form class=\"ds-strip\"><div class=\"ds-readout\"><div class=\"ds-cell\"><span class=\"ds-eng2\">Paths</span><span class=\"ds-val\">7</span></div><div class=\"ds-cell\" data-mark=\"critical\"><span class=\"ds-eng2\">Critical</span><span class=\"ds-val\">2</span></div><div class=\"ds-cell\" data-mark=\"high\"><span class=\"ds-eng2\">High</span><span class=\"ds-val\">1</span></div><div class=\"ds-cell\"><span class=\"ds-eng2\">Catch-all</span><span class=\"ds-val\">1</span></div></div><div class=\"ds-probe\"><span class=\"ds-eng2\">Test an alert</span><input class=\"ds-pinput\" type=\"text\" placeholder=\"alertname=HighCPU, severity=critical\"><button type=\"button\" class=\"ds-sbtn\">Trace</button></div><div class=\"ds-saction\"><button type=\"button\" class=\"ds-sbtn ds-sbtn-primary\">New scenario</button></div></form>",
+      "css": ".ds-strip { display:flex; align-items:stretch; flex-wrap:wrap; border:1px solid var(--rule,#c5cfcc); background:var(--panel,#f7f9f8); border-radius:2px; font-family:'Overpass',ui-sans-serif,system-ui,sans-serif; } .ds-readout { display:flex; align-items:stretch; } .ds-cell { padding:0.75rem 1rem; border-right:1px solid var(--rule,#c5cfcc); min-width:104px; } .ds-eng2 { display:block; margin-bottom:2px; font-family:'Overpass Mono',ui-monospace,monospace; font-size:0.6875rem; font-weight:600; letter-spacing:0.14em; text-transform:uppercase; color:var(--ink-faint,#56625f); white-space:nowrap; } .ds-val { font-family:'Overpass Mono',ui-monospace,monospace; font-size:1.0625rem; font-weight:600; line-height:1.2; color:var(--ink,#141a19); } .ds-cell[data-mark='critical'] .ds-val { color:var(--mark-critical,#a5271c); } .ds-cell[data-mark='high'] .ds-val { color:var(--mark-high,#8a5a09); } .ds-probe { display:flex; align-items:center; gap:0.5rem; flex:1 1 380px; padding:0.5rem 1rem; border-right:1px solid var(--rule,#c5cfcc); min-width:0; } .ds-probe .ds-eng2 { margin-bottom:0; } .ds-pinput { flex:1; min-width:0; padding:0.4rem 0.6rem; font-family:'Overpass Mono',ui-monospace,monospace; font-size:0.8125rem; color:var(--ink,#141a19); background:var(--panel-sunk,#e7ebea); border:1px solid var(--rule-strong,#9fada9); border-radius:2px; caret-color:var(--signal,#0d6f78); } .ds-pinput:focus { outline:2px solid var(--signal-edge,#12939e); outline-offset:2px; border-color:var(--signal-edge,#12939e); } .ds-saction { display:flex; align-items:center; padding:0.5rem 0.75rem; } .ds-sbtn { min-height:28px; padding:0.2rem 0.6rem; font-family:inherit; font-size:0.6875rem; font-weight:500; letter-spacing:0.04em; color:var(--ink,#141a19); background:var(--panel,#f7f9f8); border:1px solid var(--rule-strong,#9fada9); border-radius:2px; cursor:pointer; } .ds-sbtn:hover { background:var(--panel-sunk,#e7ebea); border-color:var(--ink-faint,#56625f); } .ds-sbtn-primary { min-height:34px; padding:0.4rem 0.85rem; font-size:0.8125rem; color:var(--panel,#f7f9f8); background:var(--signal,#0d6f78); border-color:var(--signal-strong,#0a565d); } .ds-sbtn-primary:hover { background:var(--signal-strong,#0a565d); }"
+    },
+    {
+      "name": "Primary Navigation",
+      "kind": "nav",
+      "refersTo": "panel-head",
+      "description": "The 52px frosted shell header: brand mark, engraved route address, nav seats, theme toggle.",
+      "html": "<header class=\"ds-head\"><nav class=\"ds-head-in\"><a class=\"ds-brand\" href=\"#\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.25\" aria-hidden=\"true\"><path d=\"M1.5 18.5h6.2L10.6 5l3.1 8.4 2-3.4h6.8\"></path><rect x=\"18.4\" y=\"8\" width=\"3.4\" height=\"3.4\" fill=\"currentColor\" stroke=\"none\"></rect></svg><span>Alert Agent</span></a><span class=\"ds-brule\"></span><span class=\"ds-addr\">PANEL / SCENARIOS</span><ul class=\"ds-nav\"><li><a href=\"#\" aria-current=\"page\">Scenarios</a></li><li><a href=\"#\">Prompts</a></li></ul><button type=\"button\" class=\"ds-icon\" aria-label=\"Switch theme\"><svg width=\"15\" height=\"15\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.25\" aria-hidden=\"true\"><path d=\"M20.5 13.4A8.4 8.4 0 0 1 10.6 3.5a8.4 8.4 0 1 0 9.9 9.9z\"></path></svg></button></nav></header>",
+      "css": ".ds-head { background:color-mix(in srgb, var(--panel,#f7f9f8) 92%, transparent); backdrop-filter:blur(6px); border-bottom:1px solid var(--rule,#c5cfcc); font-family:'Overpass',ui-sans-serif,system-ui,sans-serif; } .ds-head-in { display:flex; align-items:center; gap:1.5rem; height:52px; padding:0 1.5rem; } .ds-brand { display:inline-flex; align-items:center; gap:0.5rem; color:var(--ink,#141a19); text-decoration:none; font-weight:600; letter-spacing:-0.015em; } .ds-brand svg { color:var(--signal,#0d6f78); } .ds-brule { width:1px; height:20px; background:var(--rule,#c5cfcc); } .ds-addr { font-family:'Overpass Mono',ui-monospace,monospace; font-size:0.6875rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--ink-faint,#56625f); } .ds-nav { margin-left:auto; display:flex; align-items:center; gap:0.25rem; list-style:none; padding:0; } .ds-nav a { display:block; padding:0.25rem 0.75rem; border:1px solid transparent; border-radius:2px; color:var(--ink-muted,#414b49); text-decoration:none; font-size:0.8125rem; font-weight:500; transition:color 160ms, border-color 160ms; } .ds-nav a:hover { color:var(--ink,#141a19); border-color:var(--rule,#c5cfcc); } .ds-nav a[aria-current='page'] { color:var(--ink,#141a19); border-color:var(--rule-strong,#9fada9); background:var(--panel-sunk,#e7ebea); box-shadow:inset 0 -2px 0 var(--signal-edge,#12939e); } .ds-icon { display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px; margin-left:0.5rem; background:transparent; color:var(--ink-muted,#414b49); border:1px solid var(--rule,#c5cfcc); border-radius:2px; cursor:pointer; } .ds-icon:hover { color:var(--ink,#141a19); border-color:var(--rule-strong,#9fada9); background:var(--panel-sunk,#e7ebea); }"
+    },
+    {
+      "name": "Form Section Card",
+      "kind": "card",
+      "refersTo": "panel-surface",
+      "description": "An editor section: flat panel, hairline head rule, engraved note, no shadow.",
+      "html": "<section class=\"ds-card\"><div class=\"ds-card-head\"><h2 class=\"ds-card-title\">Matching</h2><span class=\"ds-card-note\">2 labels</span></div><div class=\"ds-pair\"><input class=\"ds-pinput2\" value=\"alertname\"><span class=\"ds-eq\">=</span><input class=\"ds-pinput2\" value=\"PostgresHighConn\"></div><p class=\"ds-help\">All labels listed here must be present on the alert with exactly these values.</p></section>",
+      "css": ".ds-card { padding:1rem 1.5rem 1.5rem; background:var(--panel,#f7f9f8); border:1px solid var(--rule,#c5cfcc); border-radius:2px; font-family:'Overpass',ui-sans-serif,system-ui,sans-serif; } .ds-card-head { display:flex; align-items:baseline; justify-content:space-between; gap:0.75rem; padding-bottom:0.5rem; margin-bottom:1rem; border-bottom:1px solid var(--rule,#c5cfcc); } .ds-card-title { margin:0; font-size:1.0625rem; font-weight:600; letter-spacing:-0.01em; color:var(--ink,#141a19); } .ds-card-note { color:var(--ink-faint,#56625f); font-size:0.6875rem; } .ds-pair { display:grid; grid-template-columns:minmax(0,1fr) 14px minmax(0,1.2fr); gap:0.5rem; align-items:center; } .ds-pinput2 { width:100%; padding:0.4rem 0.6rem; font-family:'Overpass Mono',ui-monospace,monospace; font-size:0.8125rem; color:var(--ink,#141a19); background:var(--panel-sunk,#e7ebea); border:1px solid var(--rule-strong,#9fada9); border-radius:2px; } .ds-pinput2:focus { outline:2px solid var(--signal-edge,#12939e); outline-offset:2px; border-color:var(--signal-edge,#12939e); } .ds-eq { text-align:center; font-family:'Overpass Mono',ui-monospace,monospace; color:var(--ink-faint,#56625f); } .ds-help { margin:0.75rem 0 0; max-width:72ch; color:var(--ink-muted,#414b49); font-size:0.6875rem; line-height:1.5; }"
+    },
+    {
+      "name": "Segmented Priority Control",
+      "kind": "custom",
+      "refersTo": "mark",
+      "description": "Material-state radio group: the chosen segment is seated into the panel, the classification mark shows glyph-only.",
+      "html": "<div class=\"ds-seg2\" role=\"radiogroup\"><label><input type=\"radio\" name=\"ds-prio\" checked><span class=\"ds-g\"></span><span>Normal</span></label><label><input type=\"radio\" name=\"ds-prio\"><span class=\"ds-g\" data-level=\"high\"></span><span>High</span></label><label><input type=\"radio\" name=\"ds-prio\"><span class=\"ds-g\" data-level=\"critical\"></span><span>Critical</span></label></div>",
+      "css": ".ds-seg2 { display:inline-flex; border:1px solid var(--rule-strong,#9fada9); border-radius:2px; overflow:hidden; background:var(--panel-sunk,#e7ebea); font-family:'Overpass',ui-sans-serif,system-ui,sans-serif; } .ds-seg2 label { display:inline-flex; align-items:center; gap:0.5rem; padding:0.35rem 0.75rem; font-size:0.8125rem; color:var(--ink-muted,#414b49); border-right:1px solid var(--rule,#c5cfcc); cursor:pointer; transition:background-color 160ms, color 160ms; } .ds-seg2 label:last-child { border-right:0; } .ds-seg2 input { position:absolute; opacity:0; pointer-events:none; } .ds-seg2 label:hover { color:var(--ink,#141a19); } .ds-seg2 label:has(input:checked) { background:var(--panel,#f7f9f8); color:var(--ink,#141a19); font-weight:600; box-shadow:inset 0 2px 3px rgb(0 0 0 / 0.12); } .ds-g { width:8px; height:8px; border:1px solid var(--mark-normal,#55625f); flex:none; } .ds-g[data-level='high'] { border-color:var(--mark-high,#8a5a09); background:linear-gradient(to top right, var(--mark-high,#8a5a09) 0 50%, transparent 50% 100%); } .ds-g[data-level='critical'] { border:0; width:9px; height:9px; background:var(--mark-critical,#a5271c); clip-path:polygon(50% 0, 100% 100%, 0 100%); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Silkscreened Instrument Panel",
+    "overview": "Alert Agent's control room is drawn, not decorated. The ground is drafting film — cool achromatic paper in light, ink-slate in dark — ruled by a faint 88px grid. Everything above it is built from 1px hairlines that behave like schematic lines: they divide, they route, they terminate. Content sits in a flat plane; a scenario is not a card in a stack but a path traced across the full width of the sheet, from what it catches, through how it investigates, to where it delivers. The mode is Operate: an SRE at a desktop, Grafana in the next tab, reading configuration as logic rather than as a form.\n\nColour is rationed. The content layer is achromatic top to bottom; colour appears only on edges, on the fixed classification marks, and on the single primary action. One signal hue — instrument teal — means live: the current route in the header, the path a probe just traced, the focused field, the primary button. The classification set (critical / high / normal / ok) is a separate, fixed vocabulary of engraved marks that is never allowed to become a fill.\n\nThe build refuses the category default it was drawn against: no dark-SaaS sidebar, no rounded card stacks, no gradient fills, no decorative shadows, no blue accent, no Inter. Density is expert-grade — 34px controls, 0.9375rem body, tabular numerals everywhere — and both themes are first-class, stored per browser with an OS-preference fallback.",
+    "keyCharacteristics": [
+      "Achromatic drafting ground with a deliberate hairline grid (88px, 56px under 720px).",
+      "1px rules as the primary structural device; 2px radius is effectively a square corner.",
+      "Engraved uppercase Overpass Mono micro-labels for every field name and readout.",
+      "One signal hue (instrument teal) on edges, marks and the primary action only.",
+      "Classification as an engraved mark set, never a coloured pill.",
+      "Material state: seated, engraved, flattened — controls state themselves without colour.",
+      "Self-hosted variable Overpass / Overpass Mono, embedded in the binary; no CDN.",
+      "Light and dark both normative; every text token clears WCAG AA in both."
+    ],
+    "rules": [
+      {
+        "name": "The Edge Colour Rule",
+        "body": "Colour lives on edges, marks and the primary action. No region larger than a chip is ever filled with a hue; the text layer stays achromatic. If a state needs to be visible, give it a 1-3px coloured edge (inset 3px 0 0 var(--signal-edge)), not a background.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Meaning Per Hue Rule",
+        "body": "Teal means live. Amber (mark-high) means high classification, or something needs attention. They may never be swapped: an amber live state would make 'this path is live' and 'this path is high priority' the same colour on the same row. That collision is why the signal hue is teal.",
+        "section": "colors"
+      },
+      {
+        "name": "The AA Floor Rule",
+        "body": "Every text token clears 4.5:1 against ground, panel and panel-sunk in both themes; the tightest pair in the shipped set is 4.9:1. A new colour that does not clear the floor on all three surfaces does not enter the palette.",
+        "section": "colors"
+      },
+      {
+        "name": "The Engraved Label Rule",
+        "body": "Every field name, readout caption and column head is an engraved micro-label: Overpass Mono, 0.6875rem, 600, 0.14em tracking, uppercase, in ink-faint. Uppercase tracking is allowed at this size and nowhere else.",
+        "section": "typography"
+      },
+      {
+        "name": "The Machine Value Rule",
+        "body": "Anything the system produced or the operator typed as data — label pairs, tool names, timeouts, channel IDs, ranks, counts — is set in Overpass Mono. Anything written for a human to read is set in Overpass.",
+        "section": "typography"
+      },
+      {
+        "name": "The Air-Gap Rule",
+        "body": "Fonts ship in the binary. No webfont CDN, no external stylesheet, no @import from a third party — on any surface, ever.",
+        "section": "typography"
+      },
+      {
+        "name": "The Shared Grid Rule",
+        "body": "Column heads and rows are the same grid-template-columns declaration. If a column changes width, both change, or the heads are hidden.",
+        "section": "layout"
+      },
+      {
+        "name": "The Desktop-First Rule",
+        "body": "The audience is at a desktop with Grafana open next door. Mobile refolds are honest and complete, but density is never reduced on desktop to make a phone layout easier.",
+        "section": "layout"
+      },
+      {
+        "name": "The Flat-Sheet Rule",
+        "body": "Nothing in the content layer casts a shadow. Only a <dialog> floats. Everything else separates with tone and a 1px rule.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Material State Rule",
+        "body": "Every control states itself as material change — seated, engraved, flattened — before it states itself in colour. Colour alone is never the only signal of a state.",
+        "section": "elevation"
+      },
+      {
+        "name": "The 2px Corner Rule",
+        "body": "One radius for everything rectangular. A second container radius is not introduced; if something needs to read as softer, it is the wrong component.",
+        "section": "shapes"
+      },
+      {
+        "name": "The Dashed-Means-Open Rule",
+        "body": "A dashed edge always means 'unbounded / unset / catches everything'. It is never used as decoration.",
+        "section": "shapes"
+      },
+      {
+        "name": "The Remount Rule",
+        "body": "Every initializer in panel.js is idempotent and re-runs on htmx:afterSwap; per-element binding is guarded by a dataset flag. htmx replaces whole page bodies, so any new behaviour must survive being mounted again against fresh DOM.",
+        "section": "components"
+      },
+      {
+        "name": "The Consequence-Visible Rule",
+        "body": "A control that changes routing states its consequence in place: the empty label set says it becomes a catch-all, the probe marks the row that would win, the dirty stage marks itself before you leave.",
+        "section": "components"
+      }
+    ],
+    "dos": [
+      "Do keep the content layer achromatic and confine colour to edges, marks and the single primary action (The Edge Colour Rule).",
+      "Do use instrument teal only for live and mark-high amber only for high classification / needs attention; never swap them.",
+      "Do set every machine value in Overpass Mono and every field name as an engraved micro-label (mono, 0.6875rem, 600, 0.14em, uppercase, ink-faint).",
+      "Do separate surfaces with the ground -> panel -> panel-sunk tonal ladder plus a 1px rule.",
+      "Do express state as material change first — seated, engraved, flattened — and colour second.",
+      "Do use one radius (2px) for every rectangular thing; reserve 999px for the rank node and the switch.",
+      "Do make a dashed edge mean open/unset/catch-all, and nothing else.",
+      "Do keep the body's drafting grid: it is the world's ground, not a decoration to be cleaned up.",
+      "Do self-host every font in the binary and preload the latin subsets.",
+      "Do ship both themes together and check new colours at 4.5:1 against ground, panel and panel-sunk in each.",
+      "Do write every new initializer to be idempotent and re-runnable on htmx:afterSwap.",
+      "Do draw icons as inline stroked SVG at 1.25 stroke weight, 14-18px.",
+      "Do keep column heads and rows on the same grid declaration, or hide the heads."
+    ],
+    "donts": [
+      "Don't fill a region with a hue. No gradient fills, no tinted cards, no coloured banners; signal-wash is a ring and a selection, not a background for content.",
+      "Don't render classification as a coloured pill, badge or chip — it is an engraved mark whose geometry reads without colour.",
+      "Don't add a drop shadow to anything in the content layer; only <dialog> floats.",
+      "Don't introduce a second container radius or a rounded-card stack.",
+      "Don't load a font, stylesheet or script from a CDN; the tool must run air-gapped.",
+      "Don't use uppercase letter-spaced type above the 0.6875rem engraved label size.",
+      "Don't use a browser confirm()/alert() — destructive confirmation is inline on the row it affects.",
+      "Don't replace the row-level grid with a generic table; the rank trunk, the node and the segment rules are the component.",
+      "Don't silently drop a stale MCP tool; mark it amber and keep it.",
+      "Don't make colour the only carrier of a state — pair it with a mark, an edge, or a word."
+    ]
+  }
+}

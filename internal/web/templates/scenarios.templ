@@ -2,25 +2,41 @@ package templates
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/tsisar/alert-agent/internal/storage"
 )
 
-func priorityBadgeClass(p string) string {
-	switch p {
-	case "high":
-		return "badge badge-high"
-	case "critical":
-		return "badge badge-critical"
-	default:
-		return "badge badge-normal"
+// --- helpers ---------------------------------------------------------------
+
+type labelPair struct {
+	Key   string
+	Value string
+}
+
+// matchPairs returns the match labels in a stable order.
+func matchPairs(m storage.JSONMap) []labelPair {
+	pairs := make([]labelPair, 0, len(m))
+	for k, v := range m {
+		pairs = append(pairs, labelPair{Key: k, Value: v})
 	}
+	sort.Slice(pairs, func(i, j int) bool { return pairs[i].Key < pairs[j].Key })
+	return pairs
+}
+
+func matchText(m storage.JSONMap) string {
+	pairs := matchPairs(m)
+	lines := make([]string, 0, len(pairs))
+	for _, p := range pairs {
+		lines = append(lines, p.Key+"="+p.Value)
+	}
+	return strings.Join(lines, "\n")
 }
 
 func priorityKey(p string) string {
 	switch p {
-	case "high", "critical":
+	case "critical", "high":
 		return p
 	default:
 		return "normal"
@@ -28,11 +44,11 @@ func priorityKey(p string) string {
 }
 
 func priorityLabel(p string) string {
-	switch p {
-	case "high":
-		return "High"
+	switch priorityKey(p) {
 	case "critical":
 		return "Critical"
+	case "high":
+		return "High"
 	default:
 		return "Normal"
 	}
@@ -58,161 +74,276 @@ func countCatchAll(scenarios []storage.Scenario) int {
 	return n
 }
 
+// promptPreview trims the prompt to a single scannable line.
 func promptPreview(s string) string {
-	s = strings.TrimSpace(s)
-	truncated := false
-	if i := strings.IndexByte(s, '\n'); i >= 0 {
-		s = s[:i]
-		truncated = true
+	line := strings.TrimSpace(strings.ReplaceAll(strings.ReplaceAll(s, "\r", " "), "\n", " "))
+	for strings.Contains(line, "  ") {
+		line = strings.ReplaceAll(line, "  ", " ")
 	}
-	const max = 140
-	if r := []rune(s); len(r) > max {
-		s = strings.TrimRight(string(r[:max]), " ")
-		truncated = true
+	const limit = 96
+	if len(line) > limit {
+		return strings.TrimSpace(line[:limit]) + "…"
 	}
-	if truncated {
-		return strings.TrimRight(s, " ") + "…"
-	}
-	return s
+	return line
 }
+
+// searchIndex is the haystack the client-side filter matches against.
+func searchIndex(s storage.Scenario) string {
+	parts := []string{s.Name, s.Priority, s.Timeout, s.ChannelTelegram, s.ChannelSlack}
+	for _, p := range matchPairs(s.Match) {
+		parts = append(parts, p.Key+"="+p.Value)
+	}
+	parts = append(parts, []string(s.Tools)...)
+	if len(s.Match) == 0 {
+		parts = append(parts, "catch-all")
+	}
+	return strings.ToLower(strings.Join(parts, " "))
+}
+
+// toolsSummary is read under an engraved TOOLS label, so it carries the value
+// only: "all" or a count.
+func toolsSummary(s storage.Scenario) string {
+	if len(s.Tools) == 0 {
+		return "all"
+	}
+	return fmt.Sprint(len(s.Tools))
+}
+
+func destinations(s storage.Scenario) []labelPair {
+	out := []labelPair{}
+	if s.ChannelTelegram != "" {
+		out = append(out, labelPair{Key: "telegram", Value: s.ChannelTelegram})
+	}
+	if s.ChannelSlack != "" {
+		out = append(out, labelPair{Key: "slack", Value: s.ChannelSlack})
+	}
+	return out
+}
+
+// --- scenario field --------------------------------------------------------
 
 templ ScenariosPage(scenarios []storage.Scenario) {
 	@Layout("Scenarios", "scenarios") {
-		@PageHeader("Scenarios", "Scenarios define how alerts are matched, investigated, and reported.") {
-			<a role="button" class="outline secondary" onclick="document.getElementById('import-file').click()">Import YAML</a>
-			<a href="/scenarios/export.yaml" role="button" class="outline secondary" download="scenarios.yaml">Export YAML</a>
-			<a href="/scenarios/new" role="button" class="btn-highlight">+ New Scenario</a>
-			<form id="import-form" hx-post="/scenarios/import" hx-target="body" hx-push-url="/scenarios" hx-encoding="multipart/form-data" style="display:none">
-				<input type="file" id="import-file" name="file" accept=".yaml,.yml" onchange="if(this.files.length){if(confirm('Import scenarios from '+this.files[0].name+'? Existing scenarios with matching names will be updated.')){htmx.trigger(this.closest('form'),'submit')}this.value=''}"/>
+		@PageHead("Signal panel", "Every alert enters at the top and takes the first path that matches it. Paths are evaluated in the order shown.") {
+			<a href="/scenarios/export.yaml" role="button" class="btn btn-sm" download="scenarios.yaml">Export YAML</a>
+			<button type="button" class="btn btn-sm" onclick="document.getElementById('import-file').click()">Import YAML</button>
+			<form
+				id="import-form"
+				hx-post="/scenarios/import"
+				hx-target="body"
+				hx-push-url="/scenarios"
+				hx-encoding="multipart/form-data"
+				hidden
+			>
+				<input
+					type="file"
+					id="import-file"
+					name="file"
+					accept=".yaml,.yml"
+					onchange="if(this.files.length){htmx.trigger(this.closest('form'),'submit');this.value=''}"
+				/>
 			</form>
 		}
-		<div class="scenario-stats">
-			<div class="stat">
-				<span class="label">Configured</span>
-				<span class="value">{ fmt.Sprint(len(scenarios)) } <small>rules</small></span>
+		<form class="strip" data-probe-form>
+			<div class="readout">
+				<div class="readout-cell">
+					<span class="engraved">Paths</span>
+					<span class="readout-value">{ fmt.Sprint(len(scenarios)) }</span>
+				</div>
+				<div class="readout-cell" data-mark="critical">
+					<span class="engraved">Critical</span>
+					<span class="readout-value">{ fmt.Sprint(countByPriority(scenarios, "critical")) }</span>
+				</div>
+				<div class="readout-cell" data-mark="high">
+					<span class="engraved">High</span>
+					<span class="readout-value">{ fmt.Sprint(countByPriority(scenarios, "high")) }</span>
+				</div>
+				<div class="readout-cell">
+					<span class="engraved">Catch-all</span>
+					<span class="readout-value">{ fmt.Sprint(countCatchAll(scenarios)) }</span>
+				</div>
 			</div>
-			<div class="stat stat--critical">
-				<span class="label">Critical</span>
-				<span class="value">{ fmt.Sprint(countByPriority(scenarios, "critical")) }</span>
+			<div class="strip-probe">
+				<label class="engraved" for="probe-input">Test an alert</label>
+				<input
+					type="text"
+					id="probe-input"
+					class="code"
+					data-probe-input
+					placeholder="alertname=HighCPU, severity=critical"
+					autocomplete="off"
+				/>
+				<button type="submit" class="btn btn-sm">Trace</button>
 			</div>
-			<div class="stat stat--high">
-				<span class="label">High</span>
-				<span class="value">{ fmt.Sprint(countByPriority(scenarios, "high")) }</span>
+			<div class="strip-action">
+				<a href="/scenarios/new" role="button" class="btn btn-primary">New scenario</a>
 			</div>
-			<div class="stat">
-				<span class="label">Catch-all</span>
-				<span class="value">{ fmt.Sprint(countCatchAll(scenarios)) }</span>
-			</div>
+		</form>
+		<div class="probe-result" data-probe-result role="status" aria-live="polite" hidden></div>
+		<div class="field-toolbar">
+			<input
+				type="search"
+				class="filter-input"
+				data-filter-input
+				placeholder="Filter by name, label, tool or channel  —  press /"
+				aria-label="Filter scenarios"
+				autocomplete="off"
+			/>
+			<span class="field-count" data-filter-count></span>
 		</div>
-		@SectionCard("Scenario Catalog", "Review alert routing rules and keep execution order predictable.") {
-			<div id="scenario-list">
-				@ScenarioList(scenarios)
-			</div>
-		}
+		<div class="field-columns" aria-hidden="true">
+			<span class="engraved">#</span>
+			<span class="engraved">Path</span>
+			<span class="engraved">Catches</span>
+			<span class="engraved">Investigates &amp; delivers</span>
+			<span class="engraved field-columns-actions"></span>
+		</div>
+		@ScenarioField(scenarios)
 	}
 }
 
-templ ScenarioList(scenarios []storage.Scenario) {
-	if len(scenarios) == 0 {
-		<div class="empty-state">
-			@emptyIcon()
-			<h3>No scenarios yet</h3>
-			<p>Scenarios determine how incoming alerts are matched to investigation workflows.</p>
-			<a href="/scenarios/new" role="button">Create your first scenario</a>
-		</div>
-	} else {
-		<div class="scenario-grid">
-			for _, s := range scenarios {
-				@ScenarioCard(s)
-			}
-		</div>
-	}
-}
-
-templ ScenarioCard(s storage.Scenario) {
-	<div class="scenario-card" id={ fmt.Sprintf("scenario-%d", s.ID) } data-priority={ priorityKey(s.Priority) }>
-		<div class="scenario-card-header">
-			<div class="scenario-card-heading">
-				<h4 class="scenario-card-title">
-					{ s.Name }
-					<span class="scenario-card-order">#{ fmt.Sprint(s.OrderIndex) }</span>
-				</h4>
-				<p class="scenario-card-subtitle">Investigation and notification rule</p>
+templ ScenarioField(scenarios []storage.Scenario) {
+	<div class="field" id="scenario-field" data-field>
+		if len(scenarios) == 0 {
+			<div class="empty">
+				<p class="empty-title">No paths configured</p>
+				<p>
+					Until a scenario exists, every alert that reaches the webhook is dropped.
+					A scenario decides which alerts it catches, how the agent investigates them,
+					and where the report is sent.
+				</p>
+				<ol class="empty-steps">
+					<li>Create a catch-all path first — no match labels, so nothing is lost.</li>
+					<li>Add narrower paths above it for the alerts that deserve their own prompt.</li>
+				</ol>
+				<a href="/scenarios/new" role="button" class="btn btn-primary">New scenario</a>
 			</div>
-			<span class={ priorityBadgeClass(s.Priority) }>{ priorityLabel(s.Priority) }</span>
-		</div>
-		<div class="scenario-card-meta">
-			if len(s.Match) == 0 {
-				<span class="tag tag-catch-all">catch-all</span>
-			} else {
-				for k, v := range s.Match {
-					<span class="tag tag-match">{ k }={ v }</span>
-				}
+		} else {
+			for i, s := range scenarios {
+				@PathRow(s, i, len(scenarios))
 			}
-			<span class="tag tag-timeout">{ s.Timeout }</span>
-			if s.SendImages {
-				<span class="tag tag-images">images</span>
-			}
-			if s.ChannelTelegram != "" {
-				<span class="tag tag-channel">tg: { s.ChannelTelegram }</span>
-			}
-			if s.ChannelSlack != "" {
-				<span class="tag tag-channel">slack: { s.ChannelSlack }</span>
-			}
-		</div>
-		if s.Prompt != "" {
-			<div class="scenario-card-prompt">{ promptPreview(s.Prompt) }</div>
+			<div class="empty" data-filter-empty hidden>
+				<p class="empty-title">No path matches that filter</p>
+				<p>Clear the filter to see every path again.</p>
+			</div>
 		}
-		<div class="scenario-card-actions">
-			<a
-				href={ templ.SafeURL(fmt.Sprintf("/scenarios/%d/edit", s.ID)) }
-				role="button"
-				class="btn-highlight"
-			>
-				Edit
-			</a>
-			<a
-				href={ templ.SafeURL(fmt.Sprintf("/scenarios/%d/copy", s.ID)) }
-				role="button"
-				class="outline secondary"
-			>
-				Copy
-			</a>
-			<button
-				hx-delete={ fmt.Sprintf("/scenarios/%d", s.ID) }
-				hx-target={ fmt.Sprintf("#scenario-%d", s.ID) }
-				hx-swap="outerHTML"
-				hx-confirm={ fmt.Sprintf("Delete scenario \"%s\"?", s.Name) }
-				class="outline secondary"
-			>
-				Delete
-			</button>
-		</div>
 	</div>
 }
 
-templ ScenarioFormPage(s *storage.Scenario, isEdit bool) {
-	@Layout(formTitle(isEdit), "scenarios") {
-		if isEdit {
-			@PageHeader("Edit Scenario", "Update matching and investigation behavior for this scenario.") {
-				<a href="/scenarios" role="button" class="outline secondary">Back to Scenarios</a>
-			}
-		} else {
-			@PageHeader("New Scenario", "Create a new rule for alert matching, investigation, and routing.") {
-				<a href="/scenarios" role="button" class="outline secondary">Back to Scenarios</a>
-			}
-		}
-		@SectionCard("Scenario Details", "Fields below control matching, investigation and notification channels.") {
-			@ScenarioForm(s, isEdit)
-		}
-	}
+templ PathRow(s storage.Scenario, rank, total int) {
+	<article
+		class="path"
+		id={ fmt.Sprintf("scenario-%d", s.ID) }
+		data-id={ fmt.Sprint(s.ID) }
+		data-search={ searchIndex(s) }
+		data-catch-all={ boolAttr(len(s.Match) == 0) }
+	>
+		<div class="path-rank">
+			<span class="rank-node" title={ fmt.Sprintf("Evaluated %d of %d", rank+1, total) }>{ fmt.Sprint(rank + 1) }</span>
+			<span class="mark" data-level={ priorityKey(s.Priority) } aria-hidden="true"></span>
+		</div>
+		<div class="path-segment path-seg-name">
+			<div class="path-name">
+				<a href={ templ.SafeURL(fmt.Sprintf("/scenarios/%d/edit", s.ID)) }>{ s.Name }</a>
+				<span class="mark" data-level={ priorityKey(s.Priority) }>{ priorityLabel(s.Priority) }</span>
+			</div>
+			<span class="path-prompt" title={ promptPreview(s.Prompt) }>{ promptPreview(s.Prompt) }</span>
+		</div>
+		<div class="path-segment path-seg-catches">
+			<div class="chips">
+				if len(s.Match) == 0 {
+					<span class="chip" data-open="true">catch-all — anything unmatched above</span>
+				} else {
+					for _, p := range matchPairs(s.Match) {
+						<span class="chip"><span class="chip-key">{ p.Key }</span>{ p.Value }</span>
+					}
+				}
+			</div>
+		</div>
+		<div class="path-segment path-seg-runs">
+			<div class="facts">
+				<span><b>Tools</b>{ toolsSummary(s) }</span>
+				<span><b>Budget</b>{ s.Timeout }</span>
+				if s.SendImages {
+					<span><b>Images</b>yes</span>
+				} else {
+					<span data-off="true"><b>Images</b>no</span>
+				}
+			</div>
+			<div class="chips">
+				if len(destinations(s)) == 0 {
+					<span class="chip" data-open="true">default channels</span>
+				} else {
+					for _, d := range destinations(s) {
+						<span class="chip"><span class="chip-key">{ d.Key }</span>{ d.Value }</span>
+					}
+				}
+			</div>
+		</div>
+		<div class="path-actions">
+			<div class="path-actions-default">
+				<a href={ templ.SafeURL(fmt.Sprintf("/scenarios/%d/edit", s.ID)) } role="button" class="btn btn-sm">Edit</a>
+				<a href={ templ.SafeURL(fmt.Sprintf("/scenarios/%d/copy", s.ID)) } role="button" class="btn btn-sm">Copy</a>
+				<button type="button" class="btn btn-sm btn-quiet" data-delete-ask aria-label={ "Delete " + s.Name }>
+					@trashIcon()
+				</button>
+			</div>
+			<div class="confirm" role="group" aria-label={ "Confirm deleting " + s.Name }>
+				<span>Delete?</span>
+				<button
+					type="button"
+					class="btn btn-sm btn-danger"
+					data-delete-confirm
+					hx-delete={ fmt.Sprintf("/scenarios/%d", s.ID) }
+					hx-target={ fmt.Sprintf("#scenario-%d", s.ID) }
+					hx-swap="outerHTML"
+				>Yes, delete</button>
+				<button type="button" class="btn btn-sm" data-delete-cancel>Keep</button>
+			</div>
+		</div>
+	</article>
 }
+
+// --- editor ----------------------------------------------------------------
 
 func formTitle(isEdit bool) string {
 	if isEdit {
-		return "Edit Scenario"
+		return "Edit scenario"
 	}
-	return "New Scenario"
+	return "New scenario"
+}
+
+func formLede(isEdit bool) string {
+	if isEdit {
+		return "Changes take effect for the next alert the agent receives."
+	}
+	return "A new path in the panel: what it catches, how it investigates, where the report lands."
+}
+
+templ ScenarioFormPage(s *storage.Scenario, isEdit bool, formErr string) {
+	@Layout(formTitle(isEdit), "scenario-form") {
+		@PageHead(formTitle(isEdit), formLede(isEdit)) {
+			<a href="/scenarios" role="button" class="btn" data-leave>Back to panel</a>
+		}
+		if formErr != "" {
+			@Notice("error", formErr)
+		}
+		<div class="editor">
+			<nav class="rail" data-rail aria-label="Sections">
+				<a href="#section-general">General</a>
+				<a href="#section-matching">Matching</a>
+				<a href="#section-investigation">Investigation</a>
+				<a href="#section-delivery">Delivery</a>
+				<p class="rail-note">
+					Paths are evaluated in order. A path with no match labels catches everything
+					that reached it unmatched.
+				</p>
+			</nav>
+			@ScenarioForm(s, isEdit)
+		</div>
+		@toolPickerDialog()
+		@grafanaImportDialog()
+	}
 }
 
 templ ScenarioForm(s *storage.Scenario, isEdit bool) {
@@ -224,467 +355,221 @@ templ ScenarioForm(s *storage.Scenario, isEdit bool) {
 		}
 		hx-target="body"
 		hx-push-url="/scenarios"
-		class="scenario-form"
+		class="form-stack"
+		data-guard-form
 	>
-		<div class="form-section">
+		<section class="form-section" id="section-general">
 			<div class="form-section-head">
-				<span class="form-section-num">1</span>
-				<h3 class="form-section-title">General</h3>
-				<span class="form-section-desc">Name, order, timeout and priority</span>
+				<h2 class="form-section-title">General</h2>
+				<span class="form-section-note">Identity, evaluation order, budgets</span>
 			</div>
-			<div class="grid">
-				<label>
-					Name
-					<input type="text" name="name" value={ s.Name } required/>
-				</label>
-				<label>
-					Order Index
-					<input type="number" name="order_index" value={ fmt.Sprint(s.OrderIndex) }/>
-				</label>
+			<div class="form-grid">
+				<div class="field-block">
+					<label class="field-label" for="field-name">Name</label>
+					<input type="text" id="field-name" name="name" value={ s.Name } required autocomplete="off"/>
+					<p class="help">Used in logs, YAML export and notification footers. Must be unique.</p>
+				</div>
+				<div class="field-block">
+					<label class="field-label" for="field-order">
+						Order index
+						<span class="optional">lower runs first</span>
+					</label>
+					<input type="number" id="field-order" name="order_index" value={ fmt.Sprint(s.OrderIndex) }/>
+					<p class="help">Ties are broken by name. The first path whose labels match wins.</p>
+				</div>
 			</div>
-			<div class="grid">
-				<label>
-					Timeout
-					<input type="text" name="timeout" value={ s.Timeout } placeholder="2m"/>
-				</label>
-				<div class="field">
-					<span class="field-label">Priority</span>
-					<div class="segment-control" role="radiogroup" aria-label="Priority">
-						<label class="segment" data-priority="normal">
-							<input type="radio" name="priority" value="normal" checked?={ s.Priority == "normal" || s.Priority == "" }/>
+			<div class="form-grid" style="margin-top:1rem">
+				<div class="field-block">
+					<label class="field-label" for="field-timeout">Investigation timeout</label>
+					<input type="text" id="field-timeout" name="timeout" class="code" value={ s.Timeout } placeholder="2m" required/>
+					<div class="presets">
+						<button type="button" class="btn btn-sm" data-preset="30s" data-preset-target="field-timeout">30s</button>
+						<button type="button" class="btn btn-sm" data-preset="2m" data-preset-target="field-timeout">2m</button>
+						<button type="button" class="btn btn-sm" data-preset="5m" data-preset-target="field-timeout">5m</button>
+						<button type="button" class="btn btn-sm" data-preset="10m" data-preset-target="field-timeout">10m</button>
+					</div>
+					<p class="help">Go duration. When it elapses, the agent reports what it has so far.</p>
+				</div>
+				<div class="field-block">
+					<span class="field-label" id="priority-label">Priority</span>
+					<div class="segmented" role="radiogroup" aria-labelledby="priority-label">
+						<label>
+							<input type="radio" name="priority" value="normal" checked?={ priorityKey(s.Priority) == "normal" }/>
+							<span class="mark" data-level="normal" aria-hidden="true"></span>
 							<span>Normal</span>
 						</label>
-						<label class="segment" data-priority="high">
-							<input type="radio" name="priority" value="high" checked?={ s.Priority == "high" }/>
+						<label>
+							<input type="radio" name="priority" value="high" checked?={ priorityKey(s.Priority) == "high" }/>
+							<span class="mark" data-level="high" aria-hidden="true"></span>
 							<span>High</span>
 						</label>
-						<label class="segment" data-priority="critical">
-							<input type="radio" name="priority" value="critical" checked?={ s.Priority == "critical" }/>
+						<label>
+							<input type="radio" name="priority" value="critical" checked?={ priorityKey(s.Priority) == "critical" }/>
+							<span class="mark" data-level="critical" aria-hidden="true"></span>
 							<span>Critical</span>
 						</label>
 					</div>
+					<label class="switch" style="margin-top:0.75rem">
+						<input type="checkbox" name="send_images" checked?={ s.SendImages }/>
+						<span>Attach panel images to the report</span>
+					</label>
 				</div>
 			</div>
-			<label class="toggle">
-				<input type="checkbox" name="send_images" checked?={ s.SendImages }/>
-				<span>Send images with investigation report</span>
-			</label>
-		</div>
-		<div class="form-section">
+		</section>
+		<section class="form-section" id="section-matching">
 			<div class="form-section-head">
-				<span class="form-section-num">2</span>
-				<h3 class="form-section-title">Matching</h3>
-				<span class="form-section-desc">Which alerts this scenario handles</span>
+				<h2 class="form-section-title">Matching</h2>
+				<span class="form-section-note" data-pairs-badge></span>
 			</div>
-			<label>
-				Match Labels
-				<textarea id="match-labels" name="match" rows="1" class="auto-resize" placeholder="alertname=HighCPU&#10;severity=critical">{ formatMatch(s.Match) }</textarea>
-			</label>
-			<div class="form-help-row">
-				<p class="form-help">One key=value pair per line. Leave empty for a catch-all scenario.</p>
-				<button type="button" class="btn-import" onclick="openGrafanaImport()">Import from Grafana</button>
+			<div class="field-block">
+				<span class="field-label">Alert labels this path catches</span>
+				<div class="pairs" data-pairs></div>
+				<p class="pairs-empty" data-pairs-empty hidden>
+					No labels — this path is a catch-all and takes every alert that reached it unmatched.
+				</p>
+				<div class="row-actions">
+					<button type="button" class="btn btn-sm" data-pair-add>Add label</button>
+					<button type="button" class="btn btn-sm" data-grafana-open>Import from Grafana</button>
+				</div>
+				<p class="help">
+					All labels listed here must be present on the alert with exactly these values.
+					The alert may carry other labels.
+				</p>
+				<textarea name="match" data-pairs-store hidden aria-hidden="true">{ matchText(s.Match) }</textarea>
 			</div>
-			@grafanaImportModal()
-		</div>
-		<div class="form-section">
+		</section>
+		<section class="form-section" id="section-investigation">
 			<div class="form-section-head">
-				<span class="form-section-num">3</span>
-				<h3 class="form-section-title">Investigation</h3>
-				<span class="form-section-desc">LLM prompt and allowed tools</span>
+				<h2 class="form-section-title">Investigation</h2>
+				<span class="form-section-note">What the agent is told, and what it may use</span>
 			</div>
-			<label>
-				Prompt
-				<textarea name="prompt" rows="8" required>{ s.Prompt }</textarea>
-			</label>
-			<p class="form-help">Instructions for the LLM on how to investigate alerts matched by this scenario.</p>
-			<label>
-				Allowed Tools
-				<input type="text" id="allowed-tools" name="tools" value={ strings.Join([]string(s.Tools), ", ") } placeholder="search_dashboards, get_datasource_by_uid"/>
-			</label>
-			<div class="form-help-row">
-				<p class="form-help">Comma-separated list of MCP tool names. Leave empty to allow all available tools.</p>
-				<button type="button" class="btn-import" onclick="openToolPicker()">Browse Tools</button>
+			<div class="field-block">
+				<label class="field-label" for="field-prompt">Prompt</label>
+				<textarea
+					id="field-prompt"
+					name="prompt"
+					class="code"
+					rows="4"
+					data-autoresize
+					required
+					placeholder="Investigate the alert. Check the related dashboard, compare against the last 24h, and report the likely cause."
+				>{ s.Prompt }</textarea>
+				<p class="help">
+					Appended to the system prompt for alerts matched by this path. Written for the
+					model, not for a human reader.
+				</p>
 			</div>
-			@toolPickerModal()
-		</div>
-		<div class="form-section">
+			<div class="field-block" style="margin-top:1rem">
+				<span class="field-label">
+					Allowed tools
+					<span class="optional">empty = all</span>
+				</span>
+				<div class="chips" data-tool-chips></div>
+				<div class="row-actions">
+					<button type="button" class="btn btn-sm" data-tool-open>Choose tools</button>
+				</div>
+				<p class="help">
+					Restricting tools keeps an investigation focused and cheaper. Tools that no
+					connected MCP server offers are marked; they are kept but never called.
+				</p>
+				<input type="text" name="tools" data-tools-store hidden aria-hidden="true" value={ strings.Join([]string(s.Tools), ", ") }/>
+			</div>
+		</section>
+		<section class="form-section" id="section-delivery">
 			<div class="form-section-head">
-				<span class="form-section-num">4</span>
-				<h3 class="form-section-title">Notification Channels</h3>
-				<span class="form-section-desc">Override default routing</span>
+				<h2 class="form-section-title">Delivery</h2>
+				<span class="form-section-note">Overrides the default channels</span>
 			</div>
-			<div class="grid">
-				<label>
-					Telegram Channel
-					<input type="text" name="channel_telegram" value={ s.ChannelTelegram } placeholder="-100123456789"/>
-				</label>
-				<label>
-					Slack Channel
-					<input type="text" name="channel_slack" value={ s.ChannelSlack } placeholder="#alerts"/>
-				</label>
+			<div class="form-grid">
+				<div class="field-block">
+					<label class="field-label" for="field-telegram">
+						Telegram
+						<span class="optional">optional</span>
+					</label>
+					<input type="text" id="field-telegram" name="channel_telegram" class="code" value={ s.ChannelTelegram } placeholder="-100123456789"/>
+				</div>
+				<div class="field-block">
+					<label class="field-label" for="field-slack">
+						Slack
+						<span class="optional">optional</span>
+					</label>
+					<input type="text" id="field-slack" name="channel_slack" class="code" value={ s.ChannelSlack } placeholder="#alerts"/>
+				</div>
 			</div>
-			<p class="form-help">Override the default notification channels for this scenario. Leave empty to use defaults.</p>
-		</div>
-		<div class="form-actions">
-			<button type="submit" class="btn-highlight">
-				if isEdit {
-					Update Scenario
-				} else {
-					Create Scenario
-				}
+			<p class="help" style="margin-top:0.75rem">
+				Leave both empty to use the channels configured for the agent. A channel set here
+				applies only to alerts caught by this path.
+			</p>
+		</section>
+		<div class="row-actions">
+			<button type="submit" class="btn btn-primary">
+				<span class="btn-idle">
+					if isEdit {
+						Save changes
+					} else {
+						Create scenario
+					}
+				</span>
+				<span class="btn-working">
+					@spinnerIcon()
+					Saving…
+				</span>
 			</button>
-			<a href="/scenarios" role="button" class="outline secondary">Cancel</a>
+			<a href="/scenarios" role="button" class="btn" data-leave>Cancel</a>
 		</div>
 	</form>
 }
 
-func formatMatch(m storage.JSONMap) string {
-	if len(m) == 0 {
-		return ""
-	}
-	lines := make([]string, 0, len(m))
-	for k, v := range m {
-		lines = append(lines, k+"="+v)
-	}
-	return strings.Join(lines, "\n")
-}
+// --- dialogs ---------------------------------------------------------------
 
-templ grafanaImportModal() {
-	<dialog id="grafana-import-modal">
-		<article class="import-modal-content">
-			<header>
-				<div class="import-modal-title">
-					@grafanaIcon()
-					<h3>Import from Grafana Alerting</h3>
-				</div>
-				<button type="button" class="close-modal" onclick="closeGrafanaImport()" aria-label="Close">&times;</button>
-			</header>
-			<div class="import-modal-search">
-				<input type="text" id="grafana-search" placeholder="Search by name, label, or group..." oninput="filterAlerts()" autocomplete="off"/>
-			</div>
-			<div id="grafana-alert-list" class="import-alert-list">
-				<div class="import-loading">
-					<div class="import-spinner"></div>
-					Loading alert rules...
-				</div>
-			</div>
-			<footer>
-				<span id="grafana-alert-count" class="import-count"></span>
-				<button type="button" class="outline secondary" onclick="closeGrafanaImport()">Cancel</button>
-			</footer>
-		</article>
+templ toolPickerDialog() {
+	<dialog id="tool-picker" aria-labelledby="tool-picker-title">
+		<div class="dialog-head">
+			<h2 id="tool-picker-title" class="form-section-title">MCP tools</h2>
+			<button type="button" class="icon-button" data-dialog-close aria-label="Close">
+				@closeIcon()
+			</button>
+		</div>
+		<div class="dialog-body">
+			<input type="search" data-tool-search placeholder="Search tools" aria-label="Search tools" autocomplete="off"/>
+			<p class="help" data-tool-status></p>
+			<div class="tool-list" data-tool-list></div>
+		</div>
+		<div class="dialog-foot">
+			<button type="button" class="btn btn-sm" data-tool-clear>Allow all tools</button>
+			<button type="button" class="btn btn-primary btn-sm" data-dialog-close>Done</button>
+		</div>
 	</dialog>
-	<script>
-		var _grafanaAlerts = [];
-
-		function openGrafanaImport() {
-			var modal = document.getElementById('grafana-import-modal');
-			modal.showModal();
-			document.getElementById('grafana-search').value = '';
-			document.getElementById('grafana-alert-count').textContent = '';
-			document.getElementById('grafana-alert-list').innerHTML =
-				'<div class="import-loading"><div class="import-spinner"></div>Loading alert rules...</div>';
-			fetch('/api/grafana/alerts')
-				.then(function(r) {
-					if (!r.ok) throw new Error(r.statusText);
-					return r.json();
-				})
-				.then(function(alerts) {
-					_grafanaAlerts = alerts || [];
-					renderAlerts(_grafanaAlerts);
-					updateCount(_grafanaAlerts.length, _grafanaAlerts.length);
-				})
-				.catch(function(err) {
-					document.getElementById('grafana-alert-list').innerHTML =
-						'<div class="import-empty"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg><p>Failed to load alerts from Grafana</p></div>';
-				});
-		}
-
-		function closeGrafanaImport() {
-			document.getElementById('grafana-import-modal').close();
-		}
-
-		function updateCount(shown, total) {
-			var el = document.getElementById('grafana-alert-count');
-			if (shown === total) {
-				el.textContent = total + ' alert rule' + (total !== 1 ? 's' : '');
-			} else {
-				el.textContent = shown + ' of ' + total + ' rules';
-			}
-		}
-
-		function filterAlerts() {
-			var q = document.getElementById('grafana-search').value.toLowerCase();
-			var filtered = _grafanaAlerts.filter(function(a) {
-				if (a.title.toLowerCase().indexOf(q) >= 0) return true;
-				if ((a.rule_group || '').toLowerCase().indexOf(q) >= 0) return true;
-				if ((a.folder_uid || '').toLowerCase().indexOf(q) >= 0) return true;
-				var labels = a.labels || {};
-				return Object.keys(labels).some(function(k) {
-					return (k + '=' + labels[k]).toLowerCase().indexOf(q) >= 0;
-				});
-			});
-			renderAlerts(filtered);
-			updateCount(filtered.length, _grafanaAlerts.length);
-		}
-
-		function renderAlerts(alerts) {
-			var container = document.getElementById('grafana-alert-list');
-			if (alerts.length === 0) {
-				container.innerHTML =
-					'<div class="import-empty"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/></svg><p>No matching alert rules</p></div>';
-				return;
-			}
-
-			// Group by rule_group
-			var groups = {};
-			var groupOrder = [];
-			for (var i = 0; i < alerts.length; i++) {
-				var g = alerts[i].rule_group || 'Ungrouped';
-				if (!groups[g]) {
-					groups[g] = [];
-					groupOrder.push(g);
-				}
-				groups[g].push(alerts[i]);
-			}
-
-			var html = '';
-			for (var gi = 0; gi < groupOrder.length; gi++) {
-				var groupName = groupOrder[gi];
-				var items = groups[groupName];
-				html += '<div class="import-group">';
-				html += '<div class="import-group-header">' + escapeHtml(groupName) + '<span class="import-group-count">' + items.length + '</span></div>';
-				for (var j = 0; j < items.length; j++) {
-					html += renderAlertItem(items[j]);
-				}
-				html += '</div>';
-			}
-			container.innerHTML = html;
-		}
-
-		function renderAlertItem(a) {
-			var labels = a.labels || {};
-			var severity = labels.severity || '';
-			var sevClass = severity === 'critical' ? 'tag-sev-critical' : (severity === 'warning' ? 'tag-sev-warning' : 'tag-sev-info');
-			var stateClass = a.state === 'firing' ? 'tag-alert-firing' : (a.state === 'pending' ? 'tag-alert-pending' : 'tag-alert-normal');
-
-			var html = '<div class="import-alert-item" onclick=\'selectAlert(' + JSON.stringify(JSON.stringify(a)) + ')\'>';
-
-			// Row 1: title + state
-			html += '<div class="import-alert-header">';
-			html += '<span class="import-alert-title">' + escapeHtml(a.title) + '</span>';
-			html += '<span class="tag ' + stateClass + '">' + escapeHtml(a.state || 'normal') + '</span>';
-			html += '</div>';
-
-			// Row 2: meta tags
-			html += '<div class="import-alert-meta">';
-			if (severity) {
-				html += '<span class="tag ' + sevClass + '">' + escapeHtml(severity) + '</span>';
-			}
-			if (a['for']) {
-				html += '<span class="tag tag-timeout">for: ' + escapeHtml(a['for']) + '</span>';
-			}
-			var labelPairs = Object.keys(labels).filter(function(k) { return k !== 'severity'; });
-			for (var i = 0; i < labelPairs.length; i++) {
-				var k = labelPairs[i];
-				html += '<span class="tag tag-match">' + escapeHtml(k) + '=' + escapeHtml(labels[k]) + '</span>';
-			}
-			html += '</div>';
-
-			// Row 3: summary
-			if (a.annotations && a.annotations.summary) {
-				html += '<div class="import-alert-summary">' + escapeHtml(a.annotations.summary) + '</div>';
-			}
-
-			html += '</div>';
-			return html;
-		}
-
-		function selectAlert(alertJson) {
-			var a = JSON.parse(alertJson);
-			var labels = a.labels || {};
-			var lines = ['alertname=' + a.title];
-			for (var k in labels) {
-				lines.push(k + '=' + labels[k]);
-			}
-			var textarea = document.getElementById('match-labels');
-			textarea.value = lines.join('\n');
-			autoResize(textarea);
-			closeGrafanaImport();
-		}
-
-		function escapeHtml(s) {
-			var d = document.createElement('div');
-			d.appendChild(document.createTextNode(s));
-			return d.innerHTML;
-		}
-	</script>
 }
 
-templ toolPickerModal() {
-	<dialog id="tool-picker-modal">
-		<article class="import-modal-content">
-			<header>
-				<div class="import-modal-title">
-					@toolIcon()
-					<h3>Select MCP Tools</h3>
-				</div>
-				<button type="button" class="close-modal" onclick="closeToolPicker()" aria-label="Close">&times;</button>
-			</header>
-			<div class="import-modal-search">
-				<input type="text" id="tool-search" placeholder="Search by name or description..." oninput="filterTools()" autocomplete="off"/>
-			</div>
-			<div id="tool-picker-list" class="import-alert-list">
-				<div class="import-loading">
-					<div class="import-spinner"></div>
-					Loading tools...
-				</div>
-			</div>
-			<footer>
-				<span id="tool-picker-count" class="import-count"></span>
-				<div class="tool-picker-actions">
-					<button type="button" class="outline secondary" onclick="closeToolPicker()">Cancel</button>
-					<button type="button" onclick="applySelectedTools()">Apply</button>
-				</div>
-			</footer>
-		</article>
+templ grafanaImportDialog() {
+	<dialog id="grafana-import" aria-labelledby="grafana-import-title">
+		<div class="dialog-head">
+			<h2 id="grafana-import-title" class="form-section-title">Grafana alert rules</h2>
+			<button type="button" class="icon-button" data-dialog-close aria-label="Close">
+				@closeIcon()
+			</button>
+		</div>
+		<div class="dialog-body">
+			<input type="search" data-grafana-search placeholder="Search by name, group or label" aria-label="Search alert rules" autocomplete="off"/>
+			<p class="help" data-grafana-status></p>
+			<div class="tool-list" data-grafana-list></div>
+		</div>
+		<div class="dialog-foot">
+			<p class="help">Selecting a rule replaces the labels above with its own.</p>
+			<button type="button" class="btn btn-sm" data-dialog-close>Cancel</button>
+		</div>
 	</dialog>
-	<script>
-		var _allTools = [];
-		var _selectedTools = new Set();
-
-		function openToolPicker() {
-			var modal = document.getElementById('tool-picker-modal');
-			modal.showModal();
-			document.getElementById('tool-search').value = '';
-
-			// Pre-select tools already in the input
-			var current = document.getElementById('allowed-tools').value;
-			_selectedTools = new Set();
-			if (current.trim()) {
-				current.split(',').forEach(function(t) {
-					var name = t.trim();
-					if (name) _selectedTools.add(name);
-				});
-			}
-
-			document.getElementById('tool-picker-list').innerHTML =
-				'<div class="import-loading"><div class="import-spinner"></div>Loading tools...</div>';
-			fetch('/api/tools')
-				.then(function(r) {
-					if (!r.ok) throw new Error(r.statusText);
-					return r.json();
-				})
-				.then(function(tools) {
-					_allTools = tools || [];
-					renderTools(_allTools);
-					updateToolCount(_allTools.length, _allTools.length);
-				})
-				.catch(function(err) {
-					document.getElementById('tool-picker-list').innerHTML =
-						'<div class="import-empty"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg><p>Failed to load tools</p></div>';
-				});
-		}
-
-		function closeToolPicker() {
-			document.getElementById('tool-picker-modal').close();
-		}
-
-		function updateToolCount(shown, total) {
-			var sel = _selectedTools.size;
-			var el = document.getElementById('tool-picker-count');
-			var parts = [];
-			if (shown === total) {
-				parts.push(total + ' tool' + (total !== 1 ? 's' : ''));
-			} else {
-				parts.push(shown + ' of ' + total + ' tools');
-			}
-			if (sel > 0) parts.push(sel + ' selected');
-			el.textContent = parts.join(' · ');
-		}
-
-		function filterTools() {
-			var q = document.getElementById('tool-search').value.toLowerCase();
-			var filtered = _allTools.filter(function(t) {
-				return t.name.toLowerCase().indexOf(q) >= 0 ||
-					(t.description || '').toLowerCase().indexOf(q) >= 0;
-			});
-			renderTools(filtered);
-			updateToolCount(filtered.length, _allTools.length);
-		}
-
-		function renderTools(tools) {
-			var container = document.getElementById('tool-picker-list');
-			if (tools.length === 0) {
-				container.innerHTML =
-					'<div class="import-empty"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/></svg><p>No matching tools</p></div>';
-				return;
-			}
-
-			var html = '';
-			for (var i = 0; i < tools.length; i++) {
-				var t = tools[i];
-				var checked = _selectedTools.has(t.name);
-				html += '<div class="tool-picker-item' + (checked ? ' selected' : '') + '" onclick="toggleTool(this, \'' + escapeAttr(t.name) + '\')">';
-				html += '<div class="tool-picker-header">';
-				html += '<label class="tool-picker-check"><input type="checkbox"' + (checked ? ' checked' : '') + ' onclick="event.stopPropagation(); toggleTool(this.closest(\'.tool-picker-item\'), \'' + escapeAttr(t.name) + '\')"/></label>';
-				html += '<span class="tool-picker-name">' + escapeHtml(t.name) + '</span>';
-				html += '</div>';
-				if (t.description) {
-					html += '<div class="tool-picker-desc">' + escapeHtml(t.description) + '</div>';
-				}
-				html += '</div>';
-			}
-			container.innerHTML = html;
-		}
-
-		function toggleTool(el, name) {
-			if (_selectedTools.has(name)) {
-				_selectedTools.delete(name);
-				el.classList.remove('selected');
-				el.querySelector('input[type=checkbox]').checked = false;
-			} else {
-				_selectedTools.add(name);
-				el.classList.add('selected');
-				el.querySelector('input[type=checkbox]').checked = true;
-			}
-			updateToolCount(
-				document.querySelectorAll('#tool-picker-list .tool-picker-item').length,
-				_allTools.length
-			);
-		}
-
-		function applySelectedTools() {
-			document.getElementById('allowed-tools').value = Array.from(_selectedTools).join(', ');
-			closeToolPicker();
-		}
-
-		function escapeAttr(s) {
-			return s.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-		}
-	</script>
 }
 
-templ toolIcon() {
-	<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-		<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
+templ trashIcon() {
+	<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" aria-hidden="true">
+		<path d="M4.4 6.4h15.2M9.4 6.4V4.4h5.2v2M6.8 6.4l.9 13.2h8.6l.9-13.2M10.2 9.8v6.4M13.8 9.8v6.4"></path>
 	</svg>
 }
 
-templ grafanaIcon() {
-	<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-		<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path>
-		<path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path>
-		<line x1="12" y1="2" x2="12" y2="4"></line>
-	</svg>
-}
-
-templ emptyIcon() {
-	<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
-		<path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path>
-		<polyline points="14 2 14 8 20 8"></polyline>
-		<line x1="16" y1="13" x2="8" y2="13"></line>
-		<line x1="16" y1="17" x2="8" y2="17"></line>
-		<line x1="10" y1="9" x2="8" y2="9"></line>
+templ closeIcon() {
+	<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+		<path d="M6 6l12 12M18 6L6 18"></path>
 	</svg>
 }
