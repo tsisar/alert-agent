@@ -38,18 +38,24 @@ LLM (OpenAI API)              Agent                    MCP Server (Grafana)
 ```go
 type Client struct {
     name   string
-    client *mcpclient.Client // mcp-go SSE client
+    client *mcpclient.Client // mcp-go client (SSE or Streamable HTTP)
 }
 ```
 
 **Lifecycle:**
 
-1. Create SSE client: `mcpclient.NewSSEMCPClient(url)`
+1. Create the transport client for the configured `type`:
+   `mcpclient.NewSSEMCPClient(url, opts...)` or `mcpclient.NewStreamableHttpClient(url, opts...)`
 2. Connect: `client.Start(ctx)`
 3. Initialize MCP session: `client.Initialize(ctx, req)` with protocol version and client info
 4. Ready for `listTools()` and `callTool()`
 
-**Supported transports:** only **SSE** (Server-Sent Events). stdio is not supported.
+**Supported transports:** **SSE** (Server-Sent Events) and **http** / `streamable-http`
+(Streamable HTTP). stdio is not supported.
+
+Configured `headers` are attached to every request of either transport, so the same
+`Authorization` header authenticates the SSE stream, the message endpoint and
+Streamable HTTP POSTs alike.
 
 ### Manager
 
@@ -154,12 +160,53 @@ Multiple servers are supported — each gets a separate connection:
       "url": "https://mcp-grafana.example.com/sse"
     },
     "other-server": {
-      "type": "sse",
-      "url": "https://other-mcp.example.com/sse"
+      "type": "http",
+      "url": "https://other-mcp.example.com/mcp"
     }
   }
 }
 ```
+
+| Field     | Description                                                              |
+|-----------|--------------------------------------------------------------------------|
+| `type`    | Transport: `sse` or `http` (alias `streamable-http`)                     |
+| `url`     | MCP server endpoint (`/sse` for SSE, `/mcp` for Streamable HTTP)         |
+| `headers` | Optional map of HTTP headers sent with every request (auth, tracing, …)  |
+
+### Authentication headers
+
+Servers that require authentication accept an optional `headers` map. Every
+header is sent with each HTTP request of the connection (the SSE stream, the
+message endpoint, and Streamable HTTP POSTs alike):
+
+```json
+{
+  "mcpServers": {
+    "grafana": {
+      "type": "sse",
+      "url": "https://mcp-grafana.example.com/sse",
+      "headers": {
+        "Authorization": "Bearer <token>"
+      }
+    }
+  }
+}
+```
+
+For [mcp-grafana](https://github.com/grafana/mcp-grafana) the token is usually a
+Grafana service account token; deployments fronted by a different proxy may
+expect it under another header name (e.g. `X-Grafana-API-Key`) — to the agent
+these are just headers.
+
+Header values may reference environment variables as `${VAR}` — `LoadServersFile`
+expands them at startup and fails with a named error if a referenced variable is
+unset, so a token can live in a secret rather than in `.mcp.json`:
+
+```json
+"headers": { "Authorization": "Bearer ${MCP_AUTH_TOKEN}" }
+```
+
+Headers are re-applied on reconnect, so a restored session stays authenticated.
 
 ### Tool name namespacing
 
@@ -186,8 +233,9 @@ MCP SSE sessions can expire when the server restarts or the session TTL elapses.
 The Client detects stale sessions and transparently reconnects:
 
 1. A tool call or `listTools()` fails with a session error (404 "Could not find session", connection refused, EOF)
-2. The Client closes the old SSE connection
-3. Creates a new SSE client, starts it, and initializes a new MCP session
+2. The Client closes the old connection
+3. Creates a new transport client (with the configured headers), starts it, and
+   initializes a new MCP session
 4. Retries the failed call once on the new session
 5. If reconnect itself fails — both errors are returned
 
