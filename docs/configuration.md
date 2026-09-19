@@ -103,12 +103,55 @@ The `.mcp.json` file defines the MCP servers the agent connects to.
 }
 ```
 
-| Field  | Description                             |
-|--------|-----------------------------------------|
-| `type` | Transport type. Only `sse` is supported |
-| `url`  | URL of the MCP server SSE endpoint      |
+| Field     | Description                                                                   |
+|-----------|-------------------------------------------------------------------------------|
+| `type`    | Transport type: `sse` or `http` (Streamable HTTP, alias `streamable-http`)    |
+| `url`     | URL of the MCP server endpoint (`/sse` for SSE, `/mcp` for Streamable HTTP)   |
+| `headers` | Optional HTTP headers sent with every request to the server (see below)       |
 
 You can specify multiple servers — the Manager will connect to all of them and aggregate their tools.
+
+### Authentication
+
+If the MCP server requires authorization, add a `headers` map. The headers are
+sent with every HTTP request of the connection — the SSE stream, the message
+endpoint and Streamable HTTP POSTs — and are re-applied on reconnect:
+
+```json
+{
+  "mcpServers": {
+    "grafana": {
+      "type": "sse",
+      "url": "https://mcp-grafana.example.com/sse",
+      "headers": {
+        "Authorization": "Bearer <grafana-service-account-token>"
+      }
+    }
+  }
+}
+```
+
+Header values may reference environment variables as `${VAR}`, so the token can
+come from a secret instead of the config file (a missing variable is a startup
+error, not a silent empty header):
+
+```json
+{
+  "mcpServers": {
+    "grafana": {
+      "type": "sse",
+      "url": "https://mcp-grafana.example.com/sse",
+      "headers": {
+        "Authorization": "Bearer ${MCP_AUTH_TOKEN}"
+      }
+    }
+  }
+}
+```
+
+`.mcp.json` is committed to the repo, so prefer the `${VAR}` form and keep the
+real token in `.env` (local) or in the Kubernetes Secret — the Helm chart wires
+`secret.MCP_AUTH_TOKEN` into the pod as `$MCP_AUTH_TOKEN`.
 
 ## Database
 

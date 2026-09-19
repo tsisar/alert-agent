@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	mcpclient "github.com/mark3labs/mcp-go/client"
+	"github.com/mark3labs/mcp-go/client/transport"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/tsisar/alert-agent/internal/llm"
 	"github.com/tsisar/extended-log-go/log"
@@ -37,10 +38,6 @@ type Client struct {
 }
 
 func newClient(ctx context.Context, name string, cfg ServerConfig) (*Client, error) {
-	if cfg.Type != "sse" {
-		return nil, fmt.Errorf("unsupported MCP transport %q for server %q (only sse is supported)", cfg.Type, name)
-	}
-
 	cl := &Client{name: name, cfg: cfg}
 	if err := cl.connect(ctx); err != nil {
 		return nil, err
@@ -48,13 +45,44 @@ func newClient(ctx context.Context, name string, cfg ServerConfig) (*Client, err
 	return cl, nil
 }
 
+// newTransportClient builds an underlying mcp-go client for the configured
+// transport. Both "sse" and "http" (Streamable HTTP) share the same client
+// interface, so the caller can Start/Initialize/ListTools uniformly.
+// Configured headers are attached to every request of either transport.
+func (c *Client) newTransportClient() (*mcpclient.Client, error) {
+	switch c.cfg.Type {
+	case "sse":
+		var opts []transport.ClientOption
+		if len(c.cfg.Headers) > 0 {
+			opts = append(opts, mcpclient.WithHeaders(c.cfg.Headers))
+		}
+		cl, err := mcpclient.NewSSEMCPClient(c.cfg.URL, opts...)
+		if err != nil {
+			return nil, fmt.Errorf("create MCP SSE client for %q: %w", c.name, err)
+		}
+		return cl, nil
+	case "http", "streamable-http":
+		var opts []transport.StreamableHTTPCOption
+		if len(c.cfg.Headers) > 0 {
+			opts = append(opts, transport.WithHTTPHeaders(c.cfg.Headers))
+		}
+		cl, err := mcpclient.NewStreamableHttpClient(c.cfg.URL, opts...)
+		if err != nil {
+			return nil, fmt.Errorf("create MCP HTTP client for %q: %w", c.name, err)
+		}
+		return cl, nil
+	default:
+		return nil, fmt.Errorf("unsupported MCP transport %q for server %q (supported: sse, http)", c.cfg.Type, c.name)
+	}
+}
+
 func (c *Client) connect(ctx context.Context) error {
-	sseClient, err := mcpclient.NewSSEMCPClient(c.cfg.URL)
+	mcpClient, err := c.newTransportClient()
 	if err != nil {
-		return fmt.Errorf("create MCP SSE client for %q: %w", c.name, err)
+		return err
 	}
 
-	if err := sseClient.Start(ctx); err != nil {
+	if err := mcpClient.Start(ctx); err != nil {
 		return fmt.Errorf("start MCP client %q: %w", c.name, err)
 	}
 
@@ -65,11 +93,11 @@ func (c *Client) connect(ctx context.Context) error {
 		Version: "0.1.0",
 	}
 
-	if _, err := sseClient.Initialize(ctx, initReq); err != nil {
+	if _, err := mcpClient.Initialize(ctx, initReq); err != nil {
 		return fmt.Errorf("initialize MCP session %q: %w", c.name, err)
 	}
 
-	c.client = sseClient
+	c.client = mcpClient
 	return nil
 }
 

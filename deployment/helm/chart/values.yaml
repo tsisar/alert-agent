@@ -83,11 +83,19 @@ secret:
   LLM_API_KEY: ""
   TELEGRAM_BOT_TOKEN: ""
   SLACK_BOT_TOKEN: ""
+  # Token for an MCP server that requires authorization (e.g. a Grafana service
+  # account token). Exposed to the pod as $MCP_AUTH_TOKEN and referenced from
+  # `mcp.servers.*.headers` below — the ConfigMap keeps the reference, not the token.
+  MCP_AUTH_TOKEN: ""
 
 # MCP servers config. Rendered into a ConfigMap mounted at $MCP_CONFIG_PATH.
-# Override with your own MCP server URLs; only the `sse` transport is supported.
+# Override with your own MCP server URLs. Transports: `sse` and `http`
+# (Streamable HTTP). Header values may reference env vars as ${VAR}.
 mcp:
   servers:
     grafana:
       type: sse
       url: "http://mcp-grafana.example.com/sse"
+      # Uncomment when the MCP server requires authorization:
+      # headers:
+      #   Authorization: "Bearer ${MCP_AUTH_TOKEN}"

@@ -161,6 +161,27 @@ Configure the MCP server endpoint in `.mcp.json`:
 }
 ```
 
+Transports: `sse` and `http` (Streamable HTTP). If the MCP server requires
+authorization, add a `headers` map — the headers are sent with every request and
+re-applied on reconnect. Values may reference environment variables as `${VAR}`,
+so the token stays out of the config file:
+
+```json
+{
+  "mcpServers": {
+    "grafana": {
+      "type": "sse",
+      "url": "http://mcp-grafana.example.com/sse",
+      "headers": {
+        "Authorization": "Bearer ${MCP_AUTH_TOKEN}"
+      }
+    }
+  }
+}
+```
+
+See [docs/configuration.md](docs/configuration.md#mcp-configuration) for details.
+
 ### Run
 
 ```bash
@@ -416,7 +437,7 @@ internal/
   llm/                       LLM provider interfaces
     openai/                  OpenAI-compatible API implementation
     anthropic/               Anthropic (Claude) Messages API implementation
-  mcp/                       MCP client and server manager (SSE transport)
+  mcp/                       MCP client and server manager (SSE / Streamable HTTP)
   model/                     Grafana webhook payload structures
   notify/                    Notifier interface
     telegram/                Telegram bot (MarkdownV2, photos, documents)

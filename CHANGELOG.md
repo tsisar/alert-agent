@@ -17,9 +17,18 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/
   only); Anthropic enables adaptive thinking with reasoning blocks preserved
   across the tool-use loop.
 - Copy button in the web UI to duplicate an existing scenario.
+
 - Match probe: `POST /api/match-probe` answers which scenario would catch a given
   set of alert labels, using the same matcher the webhook path uses. Surfaced in
   the web UI as *Test an alert*.
+
+- Authentication for MCP servers (e.g. Grafana behind an auth proxy): an
+  optional `headers` map in `.mcp.json` is sent with every request of the
+  connection and re-applied on reconnect. Header values may reference
+  environment variables as `${VAR}`, so the token can come from `.env` or a
+  Kubernetes Secret (`secret.MCP_AUTH_TOKEN` in the Helm chart) instead of the
+  config file; a referenced but unset variable fails at startup.
+- `http` (Streamable HTTP) MCP transport alongside `sse`.
 
 ### Changed
 
