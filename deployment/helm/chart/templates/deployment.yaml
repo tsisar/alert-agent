@@ -55,6 +55,12 @@ spec:
                   name: alert-agent
                   key: SLACK_BOT_TOKEN
                   optional: true
+            - name: MCP_AUTH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: alert-agent
+                  key: MCP_AUTH_TOKEN
+                  optional: true
           ports:
             - name: http
               containerPort: 8080

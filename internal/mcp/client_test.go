@@ -5,6 +5,8 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
@@ -13,8 +15,8 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 )
 
-// startTestMCPServer creates a real MCP server with tools and returns its SSE URL.
-func startTestMCPServer(t *testing.T) string {
+// newTestMCPServer builds an MCP server exposing echo/add/get_image tools.
+func newTestMCPServer(t *testing.T) *server.MCPServer {
 	t.Helper()
 
 	mcpServer := server.NewMCPServer(
@@ -59,10 +61,65 @@ func startTestMCPServer(t *testing.T) string {
 		}, nil
 	})
 
-	ts := server.NewTestServer(mcpServer)
+	return mcpServer
+}
+
+// startTestMCPServer creates a real MCP server with tools and returns its SSE URL.
+func startTestMCPServer(t *testing.T) string {
+	t.Helper()
+
+	ts := server.NewTestServer(newTestMCPServer(t))
 	t.Cleanup(ts.Close)
 
 	return ts.URL
+}
+
+// startTestHTTPMCPServer serves the same tools over Streamable HTTP and returns
+// its base URL. The Streamable HTTP endpoint lives at "/mcp".
+func startTestHTTPMCPServer(t *testing.T) string {
+	t.Helper()
+
+	httpServer := server.NewStreamableHTTPServer(newTestMCPServer(t))
+	ts := httptest.NewServer(httpServer)
+	t.Cleanup(ts.Close)
+
+	return ts.URL + "/mcp"
+}
+
+// requireBearer wraps h and rejects requests that do not carry
+// "Authorization: Bearer <token>" with 401.
+func requireBearer(token string, h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "Bearer "+token {
+			http.Error(w, "authorization required", http.StatusUnauthorized)
+			return
+		}
+		h.ServeHTTP(w, r)
+	})
+}
+
+// startAuthSSEMCPServer serves the test tools over SSE behind bearer auth and
+// returns the SSE endpoint URL.
+func startAuthSSEMCPServer(t *testing.T, token string) string {
+	t.Helper()
+
+	sseServer := server.NewSSEServer(newTestMCPServer(t))
+	ts := httptest.NewServer(requireBearer(token, sseServer))
+	t.Cleanup(ts.Close)
+
+	return ts.URL + "/sse"
+}
+
+// startAuthHTTPMCPServer serves the test tools over Streamable HTTP behind
+// bearer auth and returns the endpoint URL.
+func startAuthHTTPMCPServer(t *testing.T, token string) string {
+	t.Helper()
+
+	httpServer := server.NewStreamableHTTPServer(newTestMCPServer(t))
+	ts := httptest.NewServer(requireBearer(token, httpServer))
+	t.Cleanup(ts.Close)
+
+	return ts.URL + "/mcp"
 }
 
 func writeTempMCPConfig(t *testing.T, servers map[string]ServerConfig) string {
@@ -183,6 +240,33 @@ func TestNewClient_CallToolImage(t *testing.T) {
 	}
 	if string(result.Images[0]) != "fake-png-data" {
 		t.Fatalf("unexpected image data: %q", result.Images[0])
+	}
+}
+
+func TestNewClient_HTTPConnectAndCallTool(t *testing.T) {
+	url := startTestHTTPMCPServer(t)
+
+	ctx := context.Background()
+	c, err := newClient(ctx, "test", ServerConfig{Type: "http", URL: url})
+	if err != nil {
+		t.Fatalf("failed to create HTTP client: %v", err)
+	}
+	defer func() { _ = c.close() }()
+
+	tools, err := c.listTools(ctx)
+	if err != nil {
+		t.Fatalf("failed to list tools over HTTP: %v", err)
+	}
+	if len(tools) != 3 {
+		t.Fatalf("expected 3 tools, got %d", len(tools))
+	}
+
+	result, err := c.callTool(ctx, "echo", map[string]any{"message": "over http"})
+	if err != nil {
+		t.Fatalf("failed to call echo tool over HTTP: %v", err)
+	}
+	if result.Content != "echo: over http" {
+		t.Fatalf("expected 'echo: over http', got %q", result.Content)
 	}
 }
 
@@ -407,5 +491,58 @@ func TestConvertTool(t *testing.T) {
 	}
 	if len(required) != 1 || required[0] != "name" {
 		t.Fatalf("expected required=[name], got %v", required)
+	}
+}
+
+func TestNewClient_Headers(t *testing.T) {
+	const token = "secret-token"
+
+	tests := []struct {
+		name  string
+		typ   string
+		start func(t *testing.T, token string) string
+	}{
+		{name: "sse", typ: "sse", start: startAuthSSEMCPServer},
+		{name: "http", typ: "http", start: startAuthHTTPMCPServer},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			url := tt.start(t, token)
+			ctx := context.Background()
+
+			// Without headers the server must reject the connection.
+			if c, err := newClient(ctx, "noauth", ServerConfig{Type: tt.typ, URL: url}); err == nil {
+				_ = c.close()
+				t.Fatal("expected error connecting without Authorization header")
+			}
+
+			cfg := ServerConfig{
+				Type:    tt.typ,
+				URL:     url,
+				Headers: map[string]string{"Authorization": "Bearer " + token},
+			}
+			c, err := newClient(ctx, "auth", cfg)
+			if err != nil {
+				t.Fatalf("failed to create client with headers: %v", err)
+			}
+			defer func() { _ = c.close() }()
+
+			tools, err := c.listTools(ctx)
+			if err != nil {
+				t.Fatalf("failed to list tools: %v", err)
+			}
+			if got, want := len(tools), 3; got != want {
+				t.Fatalf("tools count = %d, want %d", got, want)
+			}
+
+			result, err := c.callTool(ctx, "echo", map[string]any{"message": "hi"})
+			if err != nil {
+				t.Fatalf("failed to call echo tool: %v", err)
+			}
+			if got, want := result.Content, "echo: hi"; got != want {
+				t.Fatalf("echo result = %q, want %q", got, want)
+			}
+		})
 	}
 }
