@@ -8,11 +8,11 @@ import (
 	"github.com/tsisar/extended-log-go/log"
 )
 
-var promptLabels = map[string]string{
-	"system":   "System Prompt",
-	"summary":  "Summary Prompt",
-	"resolved": "Resolved Prompt",
-	"paused":   "Paused Prompt",
+var promptKeys = map[string]bool{
+	"system":   true,
+	"summary":  true,
+	"resolved": true,
+	"paused":   true,
 }
 
 func (h *Handler) listPrompts(w http.ResponseWriter, r *http.Request) {
@@ -29,8 +29,7 @@ func (h *Handler) listPrompts(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) updatePrompt(w http.ResponseWriter, r *http.Request) {
 	key := r.PathValue("key")
-	label, ok := promptLabels[key]
-	if !ok {
+	if !promptKeys[key] {
 		http.Error(w, "unknown prompt key", http.StatusBadRequest)
 		return
 	}
@@ -47,7 +46,7 @@ func (h *Handler) updatePrompt(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := templates.PromptCardSaved(key, label, value).Render(r.Context(), w); err != nil {
-		log.Errorf("render prompt card: %v", err)
+	if err := templates.PromptStageSaved(key, value).Render(r.Context(), w); err != nil {
+		log.Errorf("render prompt stage: %v", err)
 	}
 }

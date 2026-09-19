@@ -239,17 +239,32 @@ context for a new on-call engineer: "when you see this alert, check X and Y".
 
 ## Web UI
 
-The built-in web UI provides:
+The built-in web UI is a signal panel: every scenario is drawn as one path from the
+labels it catches, through the investigation it runs, to the channel it reports to.
+Paths are listed in evaluation order, so "which rule takes this alert" is readable
+without opening anything.
 
-- **Scenario management** — create, edit, delete, reorder scenarios.
-- **Prompt editor** — customize system, summary, resolved, and paused prompts.
-- **YAML export/import** — backup and restore scenario configurations.
-- **Grafana import** — pull alert rules from Grafana to auto-fill match labels.
-- **MCP tool picker** — browse discovered tools with descriptions.
+- **Signal panel** (`/scenarios`) — all paths in evaluation order, with a filter
+  (`/` focuses it) over names, labels, tools and channels.
+- **Match probe** — paste an alert's labels into *Test an alert* and the panel marks
+  the path that would catch it. It calls the same matcher the webhook uses, so the
+  answer cannot drift from the agent's real behaviour.
+- **Scenario editor** — label pairs instead of free text, an MCP tool picker that
+  marks tools no connected server offers any more, timeout presets, inline
+  validation errors, and an unsaved-changes guard.
+- **Prompt stages** (`/prompts`) — the four templates with per-stage dirty state,
+  revert, and save.
+- **YAML export/import** — the UI and the file stay interchangeable.
+- **Grafana import** — pull an alert rule's labels straight into the match editor.
 
 Tech stack: Go templates ([Templ](https://templ.guide/)), [HTMX](https://htmx.org/),
-and a custom CSS layer based on [Material Design 3](https://m3.material.io/) tokens.
-No Node.js build step — CSS, JS, and templates are embedded in the Go binary.
+hand-written CSS, and self-hosted [Overpass](https://fonts.google.com/specimen/Overpass)
+(a Highway Gothic descendant — signage lettering for a routing panel). No Node.js build
+step and no CDN: CSS, JS, fonts and templates are all embedded in the Go binary, so the
+UI works in an air-gapped cluster. Light and dark themes are both first-class; the
+choice is remembered per browser and falls back to the OS preference.
+
+The durable design decisions live in [DESIGN.md](DESIGN.md).
 
 ## Deduplication and queue
 
@@ -400,7 +415,8 @@ See [docs/deployment.md](docs/deployment.md) for full options.
 | `DELETE` | `/scenarios/{id}`        | Delete scenario              |
 | `GET`    | `/scenarios/export.yaml` | Export all scenarios as YAML |
 | `POST`   | `/scenarios/import`      | Import scenarios from YAML   |
-| `GET`    | `/prompts`               | Prompt editor                |
+| `GET`    | `/scenarios/{id}/copy`   | Duplicate scenario into a form |
+| `GET`    | `/prompts`               | Prompt stages                |
 | `PUT`    | `/prompts/{key}`         | Update prompt template       |
 
 ### API
@@ -409,6 +425,7 @@ See [docs/deployment.md](docs/deployment.md) for full options.
 |--------|-----------------------|-----------------------------------|
 | `GET`  | `/api/tools`          | List discovered MCP tools (JSON)  |
 | `GET`  | `/api/grafana/alerts` | Fetch alert rules from Grafana    |
+| `POST` | `/api/match-probe`    | Which scenario catches these labels |
 
 ## Project structure
 
@@ -429,7 +446,7 @@ internal/
   server/                    HTTP server with graceful shutdown
   storage/                   GORM database layer (scenarios, prompts)
     seed/                    Default seed data (embedded YAML)
-  web/                       Web UI (templ + HTMX + Material 3 CSS)
+  web/                       Web UI (templ + HTMX + hand-written CSS)
     templates/               templ templates
     static/                  CSS, JS, favicon (embedded in binary)
   webhook/                   Webhook handler, dedup, queue (in-mem + Redis Streams)

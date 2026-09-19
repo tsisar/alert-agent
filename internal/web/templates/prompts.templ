@@ -2,58 +2,126 @@ package templates
 
 import "github.com/tsisar/alert-agent/internal/storage"
 
-templ PromptsPage(prompts *storage.PromptSet) {
-	@Layout("Prompts", "prompts") {
-		@PageHeader("Prompts", "These templates control LLM behavior during alert investigation and notification.") {
-			<a href="/scenarios" role="button" class="outline secondary">View Scenarios</a>
-		}
-		@NoticeBanner("info", "Tip: update prompts one-by-one and save each card to keep changes traceable.")
-		@SectionCard("Prompt Templates", "Each template maps to a distinct stage in the alert workflow.") {
-			<div class="prompt-list">
-				@PromptCard("system", "System Prompt", prompts.System)
-				@PromptCard("summary", "Summary Prompt", prompts.Summary)
-				@PromptCard("resolved", "Resolved Prompt", prompts.Resolved)
-				@PromptCard("paused", "Paused Prompt", prompts.Paused)
-			</div>
-		}
+type promptStage struct {
+	Key   string
+	Label string
+	Note  string
+	Value string
+}
+
+func promptStages(p *storage.PromptSet) []promptStage {
+	return []promptStage{
+		{
+			Key:   "system",
+			Label: "System",
+			Note:  "Sent before every investigation. Sets the agent's role, its limits and the shape of the report.",
+			Value: p.System,
+		},
+		{
+			Key:   "summary",
+			Label: "Summary",
+			Note:  "Turns a finished investigation into the message that reaches Telegram or Slack.",
+			Value: p.Summary,
+		},
+		{
+			Key:   "resolved",
+			Label: "Resolved",
+			Note:  "Used when an alert stops firing, so the thread is closed rather than left open.",
+			Value: p.Resolved,
+		},
+		{
+			Key:   "paused",
+			Label: "Paused",
+			Note:  "Used when an investigation is cut short — the timeout elapsed or the tool budget ran out.",
+			Value: p.Paused,
+		},
 	}
 }
 
-templ PromptCard(key, label, value string) {
-	<article class="prompt-card" id={ "prompt-" + key }>
-		<header>
-			<div class="prompt-card-title-wrap">
-				<strong>{ label }</strong>
-				<small>{ key }</small>
+templ PromptsPage(prompts *storage.PromptSet) {
+	@Layout("Prompts", "prompts") {
+		@PageHead("Prompt stages", "Four templates, one per stage of the agent's run. They apply to every scenario — a scenario's own prompt is added on top of the system stage — and each save takes effect on the next alert.") {
+			<a href="/scenarios" role="button" class="btn">Back to panel</a>
+		}
+		<div class="editor">
+			<nav class="rail" data-rail aria-label="Stages">
+				for _, stage := range promptStages(prompts) {
+					<a href={ templ.SafeURL("#prompt-" + stage.Key) }>{ stage.Label }</a>
+				}
+				<p class="rail-note">
+					Stages run in this order for a firing alert. Resolved and Paused replace the
+					summary when the alert clears or the run is cut short.
+				</p>
+			</nav>
+			<div class="stage-list">
+				for _, stage := range promptStages(prompts) {
+					@PromptStage(stage, false)
+				}
 			</div>
-		</header>
+		</div>
+	}
+}
+
+templ PromptStage(stage promptStage, saved bool) {
+	<article
+		class="stage form-section"
+		id={ "prompt-" + stage.Key }
+		data-stage
+		data-saved={ boolAttr(saved) }
+	>
+		<div class="stage-head">
+			<h2 class="form-section-title">{ stage.Label }</h2>
+			<span class="stage-state" data-stage-state data-state="clean" aria-live="polite">In sync</span>
+		</div>
 		<form
-			hx-put={ "/prompts/" + key }
-			hx-target={ "#prompt-" + key }
+			class="stage-body"
+			hx-put={ "/prompts/" + stage.Key }
+			hx-target={ "#prompt-" + stage.Key }
 			hx-swap="outerHTML"
 		>
-			<textarea name="value" rows="10">{ value }</textarea>
-			<button type="submit">Save</button>
+			<p class="help">{ stage.Note }</p>
+			<textarea
+				aria-label={ stage.Label + " prompt template" }
+				id={ "prompt-field-" + stage.Key }
+				name="value"
+				class="code"
+				rows="8"
+				data-autoresize
+			>{ stage.Value }</textarea>
+			<div class="stage-foot">
+				<div class="row-actions">
+					<button type="button" class="btn btn-sm" data-stage-revert disabled>Revert</button>
+					<button type="submit" class="btn btn-sm btn-primary" data-stage-save disabled>
+						<span class="btn-idle">Save</span>
+						<span class="btn-working">
+							@spinnerIcon()
+							Saving…
+						</span>
+					</button>
+				</div>
+			</div>
 		</form>
 	</article>
 }
 
-templ PromptCardSaved(key, label, value string) {
-	<article class="prompt-card" id={ "prompt-" + key }>
-		<header>
-			<div class="prompt-card-title-wrap">
-				<strong>{ label }</strong>
-				<small>{ key }</small>
-			</div>
-		</header>
-		<form
-			hx-put={ "/prompts/" + key }
-			hx-target={ "#prompt-" + key }
-			hx-swap="outerHTML"
-		>
-			<textarea name="value" rows="10">{ value }</textarea>
-			<button type="submit">Save</button>
-		</form>
-		<div class="toast">Saved</div>
-	</article>
+// PromptStageSaved re-renders one stage after a successful save.
+templ PromptStageSaved(key, value string) {
+	@PromptStage(promptStageByKey(key, value), true)
+}
+
+func promptStageByKey(key, value string) promptStage {
+	for _, s := range promptStages(&storage.PromptSet{}) {
+		if s.Key == key {
+			s.Value = value
+			return s
+		}
+	}
+	return promptStage{Key: key, Label: key, Value: value}
+}
+
+func boolAttr(b bool) string {
+	if b {
+		return "true"
+	}
+	return "false"
 }
