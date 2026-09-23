@@ -202,7 +202,79 @@ func (h *Handler) deleteScenario(w http.ResponseWriter, r *http.Request) {
 		log.Errorf("delete scenario: %v", err)
 		return
 	}
-	w.WriteHeader(http.StatusOK)
+	// The list re-renders so positions renumber and the fallback group
+	// reflects the deletion.
+	h.listScenarios(w, r)
+}
+
+// moveScenario swaps a label-matching scenario with its neighbour in
+// evaluation order, then rewrites order_index for every scenario so the new
+// order is explicit (no ties left to the database).
+func (h *Handler) moveScenario(w http.ResponseWriter, r *http.Request) {
+	id, err := parseID(r)
+	if err != nil {
+		http.Error(w, errInvalidID, http.StatusBadRequest)
+		return
+	}
+	dir := r.URL.Query().Get("dir")
+	if dir != "up" && dir != "down" {
+		http.Error(w, "dir must be up or down", http.StatusBadRequest)
+		return
+	}
+	scenarios, err := h.scenarios.List()
+	if err != nil {
+		http.Error(w, "failed to load scenarios", http.StatusInternalServerError)
+		log.Errorf("list scenarios for move: %v", err)
+		return
+	}
+	for _, s := range reorderScenarios(scenarios, uint(id), dir == "up") {
+		if err := h.scenarios.Update(&s); err != nil {
+			http.Error(w, "failed to reorder scenarios", http.StatusInternalServerError)
+			log.Errorf("reorder scenario %q: %v", s.Name, err)
+			return
+		}
+	}
+	h.listScenarios(w, r)
+}
+
+// reorderScenarios moves scenario id one step up or down among the
+// label-matching scenarios and returns every scenario whose order_index must
+// change. Catch-alls are only consulted when nothing else matches, so their
+// position is irrelevant; they are kept after the ordered ones.
+func reorderScenarios(scenarios []storage.Scenario, id uint, up bool) []storage.Scenario {
+	var ordered, fallback []storage.Scenario
+	for _, s := range scenarios {
+		if len(s.Match) == 0 {
+			fallback = append(fallback, s)
+		} else {
+			ordered = append(ordered, s)
+		}
+	}
+	at := -1
+	for i, s := range ordered {
+		if s.ID == id {
+			at = i
+			break
+		}
+	}
+	to := at + 1
+	if up {
+		to = at - 1
+	}
+	if at < 0 || to < 0 || to >= len(ordered) {
+		return nil
+	}
+	ordered[at], ordered[to] = ordered[to], ordered[at]
+
+	var changed []storage.Scenario
+	for i, s := range append(ordered, fallback...) {
+		want := (i + 1) * 10
+		if s.OrderIndex != want {
+			s.OrderIndex = want
+			changed = append(changed, s)
+		}
+	}
+	return changed
 }
 
 type exportScenario struct {
@@ -344,6 +416,13 @@ func (h *Handler) importScenarios(w http.ResponseWriter, r *http.Request) {
 	h.listScenarios(w, r)
 }
 
+// validationError is a message for the person filling in the form, rendered
+// verbatim in the editor. It is written as a full sentence, so it is not a Go
+// error string built with fmt.Errorf.
+type validationError string
+
+func (e validationError) Error() string { return string(e) }
+
 func parseID(r *http.Request) (uint64, error) {
 	return strconv.ParseUint(r.PathValue("id"), 10, 64)
 }
@@ -355,7 +434,7 @@ func parseScenarioForm(r *http.Request) (*storage.Scenario, error) {
 
 	name := strings.TrimSpace(r.FormValue("name"))
 	if name == "" {
-		return nil, fmt.Errorf("Give the scenario a name — it identifies the path in logs, exports and notifications.")
+		return nil, validationError("Give the scenario a name — it identifies the path in logs, exports and notifications.")
 	}
 
 	orderIndex, _ := strconv.Atoi(r.FormValue("order_index"))
@@ -367,7 +446,7 @@ func parseScenarioForm(r *http.Request) (*storage.Scenario, error) {
 
 	prompt := strings.TrimSpace(r.FormValue("prompt"))
 	if prompt == "" {
-		return nil, fmt.Errorf("The prompt is what the agent is told to do for these alerts; it cannot be empty.")
+		return nil, validationError("The prompt is what the agent is told to do for these alerts; it cannot be empty.")
 	}
 
 	tools := parseToolsList(r.FormValue("tools"))
@@ -377,7 +456,7 @@ func parseScenarioForm(r *http.Request) (*storage.Scenario, error) {
 		timeout = "2m"
 	}
 	if _, err := time.ParseDuration(timeout); err != nil {
-		return nil, fmt.Errorf("%q is not a duration. Write it like 30s, 2m or 1h30m.", timeout)
+		return nil, validationError(fmt.Sprintf("%q is not a duration. Write it like 30s, 2m or 1h30m.", timeout))
 	}
 
 	priority := r.FormValue("priority")
@@ -412,7 +491,7 @@ func parseMatchLabels(raw string) (storage.JSONMap, error) {
 		}
 		k, v, ok := strings.Cut(line, "=")
 		if !ok {
-			return nil, fmt.Errorf("%q is not a label. Each match label is written as key=value.", line)
+			return nil, validationError(fmt.Sprintf("%q is not a label. Each match label is written as key=value.", line))
 		}
 		m[strings.TrimSpace(k)] = strings.TrimSpace(v)
 	}

@@ -29,20 +29,29 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/
   Kubernetes Secret (`secret.MCP_AUTH_TOKEN` in the Helm chart) instead of the
   config file; a referenced but unset variable fails at startup.
 - `http` (Streamable HTTP) MCP transport alongside `sse`.
+- Reorder scenarios from the list with up/down arrows (`POST /scenarios/{id}/move`);
+  the whole list is renumbered so evaluation order is explicit.
 
 ### Changed
 
-- Web UI rebuilt as a signal panel: scenarios read as ordered paths from matched
-  labels through investigation to delivery channel, with a keyboard filter, a label
-  pair editor, an MCP tool picker that flags tools no connected server offers, inline
-  validation errors, an unsaved-changes guard, per-stage prompt dirty state, and an
+- Web UI redesigned as a conventional tool UI so every action is easy to find:
+  scenarios in a table with always-visible Edit/Duplicate/Delete, fallback
+  (catch-all) scenarios grouped separately with a warning when none or several
+  exist, a "Test an alert" card that highlights the matching scenario, a keyboard
+  filter, a label pair editor, an MCP tool picker that flags tools no connected
+  server offers, inline validation errors, a sticky Save bar with unsaved-changes
+  state, prompt templates as tabs with per-tab unsaved state, and an
   inline delete confirmation in place of the browser dialog.
-- Fonts are self-hosted and embedded in the binary; the UI no longer requests Google
-  Fonts, so it renders correctly in an air-gapped cluster.
+- The web UI uses the system font stack; no web fonts are loaded or embedded, so it
+  renders correctly in an air-gapped cluster.
 - `LLM_MODEL` now defaults to empty, letting each provider pick its own default
   (`gpt-4o` for OpenAI, `claude-opus-4-8` for Anthropic).
 - Web UI theme palette switched from purple to blue.
 - Container image is now built multi-arch for `linux/amd64` and `linux/arm64`.
+- The favicon and the top-bar mark are one icon (a bell with a spark), served from
+  a single `static/favicon.svg`.
+- The prompts page uses the same floating save bar as the scenario editor, one per
+  template tab.
 
 ### Fixed
 
@@ -53,6 +62,11 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/
 - Scenarios are hard-deleted so a name can be reused after deletion.
 - Scenario YAML import/export preserves the `order_index` ordering.
 - Scenario prompt preview is truncated to a single clean line in the web UI.
+- The MCP tool picker and Grafana rule import dialogs scroll their list; before, a
+  long list was cut off and the mouse wheel scrolled the page behind the dialog.
+- The scenario editor uses the same width as the other pages, and the layout no
+  longer shifts sideways when moving between a short page and a long one.
+- After saving a prompt template, focus returns to the text field.
 
 ### Performance
 
