@@ -62,6 +62,10 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/
 - Scenarios are hard-deleted so a name can be reused after deletion.
 - Scenario YAML import/export preserves the `order_index` ordering.
 - Scenario prompt preview is truncated to a single clean line in the web UI.
+- Reports no longer carry duplicate screenshots: within one investigation a panel
+  rendered again with the same arguments is served from the first render, and an
+  image with identical bytes is attached once. The model is told whether the
+  scenario delivers images, so it does not request the same panel again.
 - The MCP tool picker and Grafana rule import dialogs scroll their list; before, a
   long list was cut off and the mouse wheel scrolled the page behind the dialog.
 - The scenario editor uses the same width as the other pages, and the layout no
