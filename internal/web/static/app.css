@@ -104,6 +104,9 @@
 
 html {
 	-webkit-text-size-adjust: 100%;
+	/* Reserve the scrollbar's space on every page, so the layout does not
+	   shift sideways between a short page and a long one. */
+	scrollbar-gutter: stable;
 }
 
 body {
@@ -233,7 +236,7 @@ kbd {
 }
 
 .brand-mark {
-	color: var(--accent);
+	display: block;
 }
 
 .topnav {
@@ -482,13 +485,6 @@ kbd {
 	display: none;
 }
 
-.kbd-on-primary {
-	background: rgb(255 255 255 / 0.16);
-	border-color: rgb(255 255 255 / 0.3);
-	color: rgb(255 255 255 / 0.9);
-	margin-left: 0.25rem;
-}
-
 .btn-row {
 	display: flex;
 	flex-wrap: wrap;
@@ -647,16 +643,6 @@ input[type="search"]::-webkit-search-cancel-button {
 .badge[data-priority="high"] {
 	background: var(--p-high-soft);
 	color: var(--p-high);
-}
-
-.badge[data-state="dirty"] {
-	background: var(--warn-soft);
-	color: var(--warn);
-}
-
-.badge[data-state="saved"] {
-	background: var(--ok-soft);
-	color: var(--ok);
 }
 
 .dot {
@@ -1093,10 +1079,6 @@ input[type="search"]::-webkit-search-cancel-button {
 
 /* --- Editor ----------------------------------------------------------- */
 
-.editor {
-	max-width: 880px;
-}
-
 .form-card-head {
 	display: flex;
 	align-items: flex-start;
@@ -1114,16 +1096,6 @@ input[type="search"]::-webkit-search-cancel-button {
 	display: grid;
 	gap: 1.25rem;
 	padding: 1.25rem;
-}
-
-.form-card-foot {
-	display: flex;
-	justify-content: flex-end;
-	gap: 0.5rem;
-	padding: 0.85rem 1.25rem;
-	border-top: 1px solid var(--border);
-	background: var(--surface-2);
-	border-radius: 0 0 var(--radius) var(--radius);
 }
 
 .form-row {
@@ -1354,6 +1326,14 @@ input[type="search"]::-webkit-search-cancel-button {
 	background: var(--warn);
 }
 
+.save-state[data-state="saved"] {
+	color: var(--ok);
+}
+
+.save-state[data-state="saved"]::before {
+	background: var(--ok);
+}
+
 /* --- Prompts ---------------------------------------------------------- */
 
 .tabs {
@@ -1419,7 +1399,12 @@ input[type="search"]::-webkit-search-cancel-button {
 
 dialog {
 	width: min(640px, calc(100vw - 2rem));
-	max-height: min(720px, calc(100vh - 3rem));
+	/* A fixed height keeps the dialog still while the list filters, and gives
+	   the list a box to scroll inside. */
+	height: min(680px, calc(100vh - 3rem));
+	max-height: none;
+	overflow: hidden;
+	overscroll-behavior: contain;
 	padding: 0;
 	border: 1px solid var(--border);
 	border-radius: 12px;
@@ -1431,6 +1416,11 @@ dialog {
 dialog[open] {
 	display: flex;
 	flex-direction: column;
+}
+
+/* The page behind a modal must not scroll under the wheel. */
+html:has(dialog[open]) {
+	overflow: hidden;
 }
 
 dialog::backdrop {
@@ -1447,12 +1437,17 @@ dialog::backdrop {
 }
 
 .dialog-body {
-	display: grid;
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 auto;
 	gap: 0.6rem;
-	align-content: start;
+	min-height: 0;
 	padding: 1rem 1.25rem;
-	overflow-y: auto;
-	min-height: 200px;
+}
+
+.dialog-body > .search,
+.dialog-body > .help {
+	flex: none;
 }
 
 .dialog-body .search {
@@ -1476,9 +1471,13 @@ dialog::backdrop {
 
 .pick-list {
 	display: grid;
+	align-content: start;
+	flex: 1 1 auto;
+	min-height: 0;
 	border: 1px solid var(--border);
 	border-radius: var(--radius-sm);
-	overflow: hidden;
+	overflow-y: auto;
+	overscroll-behavior: contain;
 }
 
 .pick-list:empty {
@@ -1684,10 +1683,6 @@ dialog::backdrop {
 	.form-card-body {
 		padding-left: 1rem;
 		padding-right: 1rem;
-	}
-
-	.kbd-on-primary {
-		display: none;
 	}
 
 	.save-bar-inner {

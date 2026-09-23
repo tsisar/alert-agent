@@ -252,8 +252,7 @@ visible, labelled button; nothing is hidden behind hover.
   cannot drift from the agent's real behaviour.
 - **Scenario editor** — label pairs instead of free text, an MCP tool picker that
   marks tools no connected server offers any more, timeout presets, inline
-  validation errors, and a sticky Save bar with an unsaved-changes indicator
-  (Ctrl+S saves).
+  validation errors, and a sticky Save bar with an unsaved-changes indicator.
 - **Prompts** (`/prompts`) — the four templates as tabs, each with its own unsaved
   state, discard, and save.
 - **YAML export/import** — the UI and the file stay interchangeable.

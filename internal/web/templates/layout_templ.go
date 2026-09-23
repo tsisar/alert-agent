@@ -257,6 +257,9 @@ func Notice(level, message string) templ.Component {
 
 // --- icons -----------------------------------------------------------------
 // One family: 24px grid, 1.75 stroke, round caps, drawn at 16px.
+
+// brandMark is the same file as the favicon, so the tab and the header always
+// show one icon.
 func brandMark() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -278,7 +281,7 @@ func brandMark() templ.Component {
 			templ_7745c5c3_Var9 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<svg class=\"brand-mark\" width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" fill=\"none\" aria-hidden=\"true\"><rect x=\"1\" y=\"1\" width=\"22\" height=\"22\" rx=\"6\" fill=\"currentColor\"></rect> <path d=\"M5 13.5h3.2l2-5.5 3.4 9 2-3.5H19\" stroke=\"#fff\" stroke-width=\"1.9\" stroke-linecap=\"round\" stroke-linejoin=\"round\"></path></svg>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<img class=\"brand-mark\" src=\"/static/favicon.svg\" width=\"24\" height=\"24\" alt=\"\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

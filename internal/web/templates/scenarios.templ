@@ -535,17 +535,17 @@ templ ScenarioForm(s *storage.Scenario, isEdit bool) {
 					<input type="text" name="tools" data-tools-store hidden aria-hidden="true" value={ strings.Join([]string(s.Tools), ", ") }/>
 				</div>
 				<div class="field">
-						<label for="field-timeout">Timeout</label>
-						<div class="input-with-presets">
-							<input type="text" id="field-timeout" name="timeout" class="mono" value={ s.Timeout } placeholder="2m" required spellcheck="false"/>
-							<div class="presets" role="group" aria-label="Timeout presets">
-								<button type="button" class="btn btn-sm" data-preset="30s" data-preset-target="field-timeout">30s</button>
-								<button type="button" class="btn btn-sm" data-preset="2m" data-preset-target="field-timeout">2m</button>
-								<button type="button" class="btn btn-sm" data-preset="5m" data-preset-target="field-timeout">5m</button>
-								<button type="button" class="btn btn-sm" data-preset="10m" data-preset-target="field-timeout">10m</button>
-							</div>
+					<label for="field-timeout">Timeout</label>
+					<div class="input-with-presets">
+						<input type="text" id="field-timeout" name="timeout" class="mono" value={ s.Timeout } placeholder="2m" required spellcheck="false"/>
+						<div class="presets" role="group" aria-label="Timeout presets">
+							<button type="button" class="btn btn-sm" data-preset="30s" data-preset-target="field-timeout">30s</button>
+							<button type="button" class="btn btn-sm" data-preset="2m" data-preset-target="field-timeout">2m</button>
+							<button type="button" class="btn btn-sm" data-preset="5m" data-preset-target="field-timeout">5m</button>
+							<button type="button" class="btn btn-sm" data-preset="10m" data-preset-target="field-timeout">10m</button>
 						</div>
-						<p class="help">When it runs out, the agent reports what it has found so far.</p>
+					</div>
+					<p class="help">When it runs out, the agent reports what it has found so far.</p>
 				</div>
 				<label class="switch">
 					<input type="checkbox" name="send_images" checked?={ s.SendImages }/>
@@ -596,7 +596,6 @@ templ ScenarioForm(s *storage.Scenario, isEdit bool) {
 							@spinnerIcon()
 							Saving…
 						</span>
-						<kbd class="kbd-on-primary" aria-hidden="true">Ctrl S</kbd>
 					</button>
 				</div>
 			</div>

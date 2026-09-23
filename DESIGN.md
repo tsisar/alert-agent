@@ -299,16 +299,17 @@ Quiet and solid: white by default, blue for the one primary action per area.
 ### Navigation
 - **Top nav:** 500-weight Slate links, full top-bar height, 2px underline that is Firm Line on hover and Action Blue (with Ink, 600 text) on the current page.
 - **Tabs:** the same underline grammar at content level (prompt stages); hover adds a Hover Grey fill with 6px top corners; an amber 7px dot marks a tab with unsaved changes.
+- **Brand mark:** a white bell with a small four-point spark on a 7px-rounded Action Blue (#2360d8) tile: an alert, and the agent that investigates it. It is one file, `static/favicon.svg`, used both as the favicon and as the 24px mark in the top bar, so the tab and the page never disagree. The tile colour is fixed; it does not follow the theme.
 - **Mobile:** the brand collapses to its mark; nav stays inline.
 
 ### Scenario Table (signature)
 Grey Label-type header strip, 16px cell padding, Hairline row rules, Hover Grey on hover. The order column shows a 26px numbered tile beside stacked up/down ghost arrows. The row that a test alert matched gets the Selection Wash with a blue inset ring. Delete confirmation happens in the row: the row tints Blush and the actions swap for "Delete this scenario?" with Delete and Cancel. Group headers (Fallback) are Shelf Grey rows with a 650 Body Small title and a note.
 
 ### Sticky Save Bar (signature)
-A raised card (Floating shadow, 8px) pinned to the bottom of long forms: a save-state dot and text on the left (grey when clean, amber when dirty), Cancel and Save on the right, with a Ctrl S key hint inside the primary button on desktop.
+A raised card (Floating shadow, 8px) pinned to the bottom of long forms: a save-state dot and text on the left (grey when clean, amber when dirty, green once saved), the secondary action and Save on the right. The scenario editor uses Cancel and Save; each prompt tab has its own bar with Discard changes and Save. Forms and the list page share the page width, and the page always reserves the scrollbar's gutter, so the layout does not shift between pages.
 
 ### Dialogs
-Up to 640px wide, 12px corners, Floating shadow, head with title and ghost close button, scrolling body, Shelf Grey footer with help text left and actions right. Pick lists inside are bordered 6px lists whose checked rows take the Selection Wash.
+Up to 640px wide and a fixed height (at most 680px), 12px corners, Floating shadow, head with title and ghost close button, Shelf Grey footer with help text left and actions right. The search field stays put and the pick list is the only thing that scrolls; the page behind is locked while a dialog is open. Pick lists inside are bordered 6px lists whose checked rows take the Selection Wash.
 
 ## Do's and Don'ts
 

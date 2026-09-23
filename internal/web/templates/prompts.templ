@@ -67,7 +67,7 @@ templ PromptsPage(prompts *storage.PromptSet) {
 
 templ PromptStage(stage promptStage, saved bool) {
 	<article
-		class="card stage"
+		class="stage"
 		id={ "prompt-" + stage.Key }
 		role="tabpanel"
 		aria-labelledby={ "tab-" + stage.Key }
@@ -79,34 +79,40 @@ templ PromptStage(stage promptStage, saved bool) {
 			hx-target={ "#prompt-" + stage.Key }
 			hx-swap="outerHTML"
 		>
-			<header class="form-card-head">
-				<div>
-					<h2 class="card-title">{ stage.Label }</h2>
-					<p class="muted">{ stage.Note }</p>
+			<section class="card">
+				<header class="form-card-head">
+					<div>
+						<h2 class="card-title">{ stage.Label }</h2>
+						<p class="muted">{ stage.Note }</p>
+					</div>
+				</header>
+				<div class="form-card-body">
+					<textarea
+						aria-label={ stage.Label + " prompt template" }
+						id={ "prompt-field-" + stage.Key }
+						name="value"
+						class="mono prompt-area"
+						rows="12"
+						data-autoresize
+						spellcheck="false"
+					>{ stage.Value }</textarea>
 				</div>
-				<span class="badge" data-stage-state data-state="clean" aria-live="polite">Saved</span>
-			</header>
-			<div class="form-card-body">
-				<textarea
-					aria-label={ stage.Label + " prompt template" }
-					id={ "prompt-field-" + stage.Key }
-					name="value"
-					class="mono prompt-area"
-					rows="12"
-					data-autoresize
-					spellcheck="false"
-				>{ stage.Value }</textarea>
+			</section>
+			<div class="save-bar">
+				<div class="save-bar-inner">
+					<span class="save-state" data-stage-state data-state="clean" aria-live="polite">Up to date</span>
+					<div class="btn-row">
+						<button type="button" class="btn" data-stage-revert disabled>Discard changes</button>
+						<button type="submit" class="btn btn-primary" data-stage-save disabled>
+							<span class="btn-idle">Save</span>
+							<span class="btn-working">
+								@spinnerIcon()
+								Saving…
+							</span>
+						</button>
+					</div>
+				</div>
 			</div>
-			<footer class="form-card-foot">
-				<button type="button" class="btn" data-stage-revert disabled>Discard changes</button>
-				<button type="submit" class="btn btn-primary" data-stage-save disabled>
-					<span class="btn-idle">Save</span>
-					<span class="btn-working">
-						@spinnerIcon()
-						Saving…
-					</span>
-				</button>
-			</footer>
 		</form>
 	</article>
 }

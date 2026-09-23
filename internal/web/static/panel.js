@@ -707,7 +707,7 @@
 		});
 	}
 
-	/* --- Editor: timeout presets, unsaved state, Ctrl+S ----------------- */
+	/* --- Editor: timeout presets and unsaved state ---------------------- */
 
 	function initPresets() {
 		$$("[data-preset]").forEach(function (btn) {
@@ -751,26 +751,12 @@
 		});
 	}
 
-	// Registered once: the handlers look up the current page at key time.
-	function initGlobalKeys() {
+	// Registered once: the handler looks up the current form at unload time.
+	function initLeaveGuard() {
 		window.addEventListener("beforeunload", function (e) {
 			if (!dirty || !$("[data-guard-form]")) return;
 			e.preventDefault();
 			e.returnValue = "";
-		});
-		doc.addEventListener("keydown", function (e) {
-			if (!(e.ctrlKey || e.metaKey) || e.altKey || (e.key || "").toLowerCase() !== "s") return;
-			var form = $("[data-guard-form]");
-			if (form) {
-				e.preventDefault();
-				if (form.reportValidity()) htmx.trigger(form, "submit");
-				return;
-			}
-			var stage = $("[data-stage][data-active]") || $("[data-stage]");
-			var save = stage && $("[data-stage-save]", stage);
-			if (!save) return;
-			e.preventDefault();
-			if (!save.disabled) htmx.trigger($("form", stage), "submit");
 		});
 	}
 
@@ -831,19 +817,6 @@
 			if (stage.dataset.stageBound) return;
 			stage.dataset.stageBound = "1";
 
-			// htmx replaced this stage's markup. The Save button is disabled again
-			// after a save, so focus lands on the field the user was editing.
-			if (stage.dataset.saved === "true") {
-				var savedArea = $("textarea", stage);
-				if (savedArea) {
-					savedArea.focus();
-					var end = savedArea.value.length;
-					try {
-						savedArea.setSelectionRange(end, end);
-					} catch (e) {}
-				}
-			}
-
 			var area = $("textarea", stage);
 			var state = $("[data-stage-state]", stage);
 			var revert = $("[data-stage-revert]", stage);
@@ -903,13 +876,29 @@
 	doc.addEventListener("DOMContentLoaded", function () {
 		initDeleteConfirm();
 		initSlashKey();
-		initGlobalKeys();
+		initLeaveGuard();
 		mount(doc);
 	});
 
 	doc.body.addEventListener("htmx:beforeRequest", function (e) {
 		var btn = e.target.closest && e.target.closest("[data-move]");
 		pendingMove = btn ? { row: btn.closest(".scn-row").id, dir: btn.dataset.move } : null;
+	});
+
+	// htmx replaced a prompt stage after a save. The Save button is disabled
+	// again, so focus goes back to the field being edited. This waits for
+	// afterSettle: focusing on afterSwap is undone by htmx settling the swap.
+	doc.body.addEventListener("htmx:afterSettle", function () {
+		var stage = $('[data-stage][data-saved="true"]:not([data-refocused])');
+		if (!stage) return;
+		stage.setAttribute("data-refocused", "");
+		var area = $("textarea", stage);
+		if (!area) return;
+		area.focus();
+		var end = area.value.length;
+		try {
+			area.setSelectionRange(end, end);
+		} catch (e) {}
 	});
 
 	doc.body.addEventListener("htmx:afterSwap", function () {
