@@ -52,7 +52,7 @@ func (a *Agent) Run(ctx context.Context, payload *model.WebhookPayload, sc *scen
 		return nil, fmt.Errorf("load prompts: %w", err)
 	}
 
-	tools := a.toolsForScenario(sc)
+	tools := newImageExecutor(a.toolsForScenario(sc), sc.SendImages)
 	toolDefs := tools.Tools()
 
 	log.Debugf("[agent] scenario=%q tools=%d timeout=%s priority=%s",
