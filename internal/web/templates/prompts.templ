@@ -40,66 +40,73 @@ func promptStages(p *storage.PromptSet) []promptStage {
 
 templ PromptsPage(prompts *storage.PromptSet) {
 	@Layout("Prompts", "prompts") {
-		@PageHead("Prompt stages", "Four templates, one per stage of the agent's run. They apply to every scenario — a scenario's own prompt is added on top of the system stage — and each save takes effect on the next alert.") {
-			<a href="/scenarios" role="button" class="btn">Back to panel</a>
+		@PageHead("Prompts", "Four templates shared by every scenario. A scenario's own instructions are added to the System prompt. Saved changes apply to the next alert.") {
 		}
-		<div class="editor">
-			<nav class="rail" data-rail aria-label="Stages">
-				for _, stage := range promptStages(prompts) {
-					<a href={ templ.SafeURL("#prompt-" + stage.Key) }>{ stage.Label }</a>
-				}
-				<p class="rail-note">
-					Stages run in this order for a firing alert. Resolved and Paused replace the
-					summary when the alert clears or the run is cut short.
-				</p>
-			</nav>
-			<div class="stage-list">
-				for _, stage := range promptStages(prompts) {
-					@PromptStage(stage, false)
-				}
-			</div>
+		<div class="tabs" role="tablist" aria-label="Prompt templates" data-tabs>
+			for _, stage := range promptStages(prompts) {
+				<a
+					href={ templ.SafeURL("#prompt-" + stage.Key) }
+					role="tab"
+					class="tab"
+					id={ "tab-" + stage.Key }
+					aria-controls={ "prompt-" + stage.Key }
+					data-tab={ "prompt-" + stage.Key }
+				>
+					{ stage.Label }
+					<span class="tab-dot" aria-hidden="true"></span>
+				</a>
+			}
+		</div>
+		<div class="stage-list">
+			for _, stage := range promptStages(prompts) {
+				@PromptStage(stage, false)
+			}
 		</div>
 	}
 }
 
 templ PromptStage(stage promptStage, saved bool) {
 	<article
-		class="stage form-section"
+		class="card stage"
 		id={ "prompt-" + stage.Key }
+		role="tabpanel"
+		aria-labelledby={ "tab-" + stage.Key }
 		data-stage
 		data-saved={ boolAttr(saved) }
 	>
-		<div class="stage-head">
-			<h2 class="form-section-title">{ stage.Label }</h2>
-			<span class="stage-state" data-stage-state data-state="clean" aria-live="polite">In sync</span>
-		</div>
 		<form
-			class="stage-body"
 			hx-put={ "/prompts/" + stage.Key }
 			hx-target={ "#prompt-" + stage.Key }
 			hx-swap="outerHTML"
 		>
-			<p class="help">{ stage.Note }</p>
-			<textarea
-				aria-label={ stage.Label + " prompt template" }
-				id={ "prompt-field-" + stage.Key }
-				name="value"
-				class="code"
-				rows="8"
-				data-autoresize
-			>{ stage.Value }</textarea>
-			<div class="stage-foot">
-				<div class="row-actions">
-					<button type="button" class="btn btn-sm" data-stage-revert disabled>Revert</button>
-					<button type="submit" class="btn btn-sm btn-primary" data-stage-save disabled>
-						<span class="btn-idle">Save</span>
-						<span class="btn-working">
-							@spinnerIcon()
-							Saving…
-						</span>
-					</button>
+			<header class="form-card-head">
+				<div>
+					<h2 class="card-title">{ stage.Label }</h2>
+					<p class="muted">{ stage.Note }</p>
 				</div>
+				<span class="badge" data-stage-state data-state="clean" aria-live="polite">Saved</span>
+			</header>
+			<div class="form-card-body">
+				<textarea
+					aria-label={ stage.Label + " prompt template" }
+					id={ "prompt-field-" + stage.Key }
+					name="value"
+					class="mono prompt-area"
+					rows="12"
+					data-autoresize
+					spellcheck="false"
+				>{ stage.Value }</textarea>
 			</div>
+			<footer class="form-card-foot">
+				<button type="button" class="btn" data-stage-revert disabled>Discard changes</button>
+				<button type="submit" class="btn btn-primary" data-stage-save disabled>
+					<span class="btn-idle">Save</span>
+					<span class="btn-working">
+						@spinnerIcon()
+						Saving…
+					</span>
+				</button>
+			</footer>
 		</form>
 	</article>
 }

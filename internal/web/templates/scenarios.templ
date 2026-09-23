@@ -54,24 +54,17 @@ func priorityLabel(p string) string {
 	}
 }
 
-func countByPriority(scenarios []storage.Scenario, p string) int {
-	n := 0
-	for _, s := range scenarios {
-		if priorityKey(s.Priority) == p {
-			n++
-		}
-	}
-	return n
-}
-
-func countCatchAll(scenarios []storage.Scenario) int {
-	n := 0
+// splitScenarios separates scenarios that match on labels (checked in order)
+// from catch-alls, which the matcher only falls back to when nothing matched.
+func splitScenarios(scenarios []storage.Scenario) (ordered, fallback []storage.Scenario) {
 	for _, s := range scenarios {
 		if len(s.Match) == 0 {
-			n++
+			fallback = append(fallback, s)
+		} else {
+			ordered = append(ordered, s)
 		}
 	}
-	return n
+	return ordered, fallback
 }
 
 // promptPreview trims the prompt to a single scannable line.
@@ -80,7 +73,7 @@ func promptPreview(s string) string {
 	for strings.Contains(line, "  ") {
 		line = strings.ReplaceAll(line, "  ", " ")
 	}
-	const limit = 96
+	const limit = 110
 	if len(line) > limit {
 		return strings.TrimSpace(line[:limit]) + "…"
 	}
@@ -95,38 +88,50 @@ func searchIndex(s storage.Scenario) string {
 	}
 	parts = append(parts, []string(s.Tools)...)
 	if len(s.Match) == 0 {
-		parts = append(parts, "catch-all")
+		parts = append(parts, "fallback catch-all")
 	}
 	return strings.ToLower(strings.Join(parts, " "))
 }
 
-// toolsSummary is read under an engraved TOOLS label, so it carries the value
-// only: "all" or a count.
 func toolsSummary(s storage.Scenario) string {
-	if len(s.Tools) == 0 {
-		return "all"
+	switch len(s.Tools) {
+	case 0:
+		return "All tools"
+	case 1:
+		return "1 tool"
+	default:
+		return fmt.Sprintf("%d tools", len(s.Tools))
 	}
-	return fmt.Sprint(len(s.Tools))
 }
 
 func destinations(s storage.Scenario) []labelPair {
 	out := []labelPair{}
 	if s.ChannelTelegram != "" {
-		out = append(out, labelPair{Key: "telegram", Value: s.ChannelTelegram})
+		out = append(out, labelPair{Key: "Telegram", Value: s.ChannelTelegram})
 	}
 	if s.ChannelSlack != "" {
-		out = append(out, labelPair{Key: "slack", Value: s.ChannelSlack})
+		out = append(out, labelPair{Key: "Slack", Value: s.ChannelSlack})
 	}
 	return out
 }
 
-// --- scenario field --------------------------------------------------------
+// --- scenario list ---------------------------------------------------------
 
 templ ScenariosPage(scenarios []storage.Scenario) {
 	@Layout("Scenarios", "scenarios") {
-		@PageHead("Signal panel", "Every alert enters at the top and takes the first path that matches it. Paths are evaluated in the order shown.") {
-			<a href="/scenarios/export.yaml" role="button" class="btn btn-sm" download="scenarios.yaml">Export YAML</a>
-			<button type="button" class="btn btn-sm" onclick="document.getElementById('import-file').click()">Import YAML</button>
+		@PageHead("Scenarios", "Each alert is handled by the first scenario whose labels it matches, checked top to bottom. If none match, the fallback scenario handles it.") {
+			<a href="/scenarios/export.yaml" role="button" class="btn" download="scenarios.yaml">
+				@downloadIcon()
+				Export YAML
+			</a>
+			<button type="button" class="btn" onclick="document.getElementById('import-file').click()">
+				@uploadIcon()
+				Import YAML
+			</button>
+			<a href="/scenarios/new" role="button" class="btn btn-primary">
+				@plusIcon()
+				New scenario
+			</a>
 			<form
 				id="import-form"
 				hx-post="/scenarios/import"
@@ -144,164 +149,256 @@ templ ScenariosPage(scenarios []storage.Scenario) {
 				/>
 			</form>
 		}
-		<form class="strip" data-probe-form>
-			<div class="readout">
-				<div class="readout-cell">
-					<span class="engraved">Paths</span>
-					<span class="readout-value">{ fmt.Sprint(len(scenarios)) }</span>
+		<section class="card probe" aria-labelledby="probe-title">
+			<form class="probe-form" data-probe-form>
+				<div class="probe-text">
+					<h2 class="card-title" id="probe-title">Test an alert</h2>
+					<p class="muted">Enter an alert's labels to see which scenario would handle it.</p>
 				</div>
-				<div class="readout-cell" data-mark="critical">
-					<span class="engraved">Critical</span>
-					<span class="readout-value">{ fmt.Sprint(countByPriority(scenarios, "critical")) }</span>
+				<div class="probe-controls">
+					<input
+						type="text"
+						id="probe-input"
+						class="mono"
+						data-probe-input
+						placeholder="alertname=HighCPU, severity=critical"
+						aria-labelledby="probe-title"
+						autocomplete="off"
+						spellcheck="false"
+					/>
+					<button type="submit" class="btn">
+						@playIcon()
+						Run test
+					</button>
 				</div>
-				<div class="readout-cell" data-mark="high">
-					<span class="engraved">High</span>
-					<span class="readout-value">{ fmt.Sprint(countByPriority(scenarios, "high")) }</span>
-				</div>
-				<div class="readout-cell">
-					<span class="engraved">Catch-all</span>
-					<span class="readout-value">{ fmt.Sprint(countCatchAll(scenarios)) }</span>
-				</div>
-			</div>
-			<div class="strip-probe">
-				<label class="engraved" for="probe-input">Test an alert</label>
-				<input
-					type="text"
-					id="probe-input"
-					class="code"
-					data-probe-input
-					placeholder="alertname=HighCPU, severity=critical"
-					autocomplete="off"
-				/>
-				<button type="submit" class="btn btn-sm">Trace</button>
-			</div>
-			<div class="strip-action">
-				<a href="/scenarios/new" role="button" class="btn btn-primary">New scenario</a>
-			</div>
-		</form>
-		<div class="probe-result" data-probe-result role="status" aria-live="polite" hidden></div>
-		<div class="field-toolbar">
-			<input
-				type="search"
-				class="filter-input"
-				data-filter-input
-				placeholder="Filter by name, label, tool or channel  —  press /"
-				aria-label="Filter scenarios"
-				autocomplete="off"
-			/>
-			<span class="field-count" data-filter-count></span>
-		</div>
-		<div class="field-columns" aria-hidden="true">
-			<span class="engraved">#</span>
-			<span class="engraved">Path</span>
-			<span class="engraved">Catches</span>
-			<span class="engraved">Investigates &amp; delivers</span>
-			<span class="engraved field-columns-actions"></span>
-		</div>
-		@ScenarioField(scenarios)
+			</form>
+			<div class="probe-result" data-probe-result role="status" aria-live="polite" hidden></div>
+		</section>
+		@ScenarioList(scenarios)
 	}
 }
 
-templ ScenarioField(scenarios []storage.Scenario) {
-	<div class="field" id="scenario-field" data-field>
+templ ScenarioList(scenarios []storage.Scenario) {
+	<section class="card list" id="scenario-list" aria-label="Scenarios">
 		if len(scenarios) == 0 {
 			<div class="empty">
-				<p class="empty-title">No paths configured</p>
+				<h2 class="empty-title">No scenarios yet</h2>
 				<p>
 					Until a scenario exists, every alert that reaches the webhook is dropped.
-					A scenario decides which alerts it catches, how the agent investigates them,
-					and where the report is sent.
+					Start with a fallback scenario (no match labels) so nothing is lost, then add
+					specific scenarios for alerts that need their own instructions.
 				</p>
-				<ol class="empty-steps">
-					<li>Create a catch-all path first — no match labels, so nothing is lost.</li>
-					<li>Add narrower paths above it for the alerts that deserve their own prompt.</li>
-				</ol>
-				<a href="/scenarios/new" role="button" class="btn btn-primary">New scenario</a>
+				<a href="/scenarios/new" role="button" class="btn btn-primary">
+					@plusIcon()
+					New scenario
+				</a>
 			</div>
 		} else {
-			for i, s := range scenarios {
-				@PathRow(s, i, len(scenarios))
-			}
-			<div class="empty" data-filter-empty hidden>
-				<p class="empty-title">No path matches that filter</p>
-				<p>Clear the filter to see every path again.</p>
+			<div class="list-toolbar">
+				<label class="search">
+					@searchIcon()
+					<input
+						type="search"
+						data-filter-input
+						placeholder="Filter by name, label, tool or channel"
+						aria-label="Filter scenarios"
+						autocomplete="off"
+					/>
+					<kbd title="Press / to filter">/</kbd>
+				</label>
+				<span class="list-count" data-filter-count></span>
+			</div>
+			<div class="table-wrap">
+				<table class="scn-table" data-field>
+					<thead>
+						<tr>
+							<th scope="col" class="col-order">Order</th>
+							<th scope="col">Scenario</th>
+							<th scope="col">Matches labels</th>
+							<th scope="col">Investigation</th>
+							<th scope="col">Sends to</th>
+							<th scope="col" class="col-actions"><span class="sr-only">Actions</span></th>
+						</tr>
+					</thead>
+					@scenarioGroups(scenarios)
+				</table>
+			</div>
+			<div class="empty empty-inline" data-filter-empty hidden>
+				<p class="empty-title">No scenario matches that filter</p>
+				<p>Press Esc to clear it.</p>
 			</div>
 		}
-	</div>
+	</section>
 }
 
-templ PathRow(s storage.Scenario, rank, total int) {
-	<article
-		class="path"
+templ scenarioGroups(scenarios []storage.Scenario) {
+	{{ ordered, fallback := splitScenarios(scenarios) }}
+	<tbody>
+		for i, s := range ordered {
+			@ScenarioRow(s, i, len(ordered))
+		}
+		if len(ordered) == 0 {
+			<tr class="group-note">
+				<td colspan="6">No label-matching scenarios. Every alert goes to the fallback.</td>
+			</tr>
+		}
+	</tbody>
+	<tbody class="fallback-group">
+		<tr class="group-head">
+			<th colspan="6" scope="rowgroup">
+				<span class="group-title">Fallback</span>
+				<span class="muted">Handles alerts that no scenario above matches.</span>
+				if len(fallback) > 1 {
+					<span class="group-warn">
+						@alertIcon()
+						{ fmt.Sprintf("%d fallback scenarios: only the last one is ever used.", len(fallback)) }
+					</span>
+				}
+			</th>
+		</tr>
+		for _, s := range fallback {
+			@ScenarioRow(s, -1, 0)
+		}
+		if len(fallback) == 0 {
+			<tr class="group-note" data-level="warn">
+				<td colspan="6">
+					<span class="group-warn">
+						@alertIcon()
+						No fallback. Alerts that match no scenario are dropped.
+					</span>
+					<a href="/scenarios/new" class="link">Create a scenario without labels</a>
+				</td>
+			</tr>
+		}
+	</tbody>
+}
+
+// ScenarioRow renders one scenario. pos is its index among the ordered
+// scenarios, or -1 for a fallback (catch-all) scenario, which has no position.
+templ ScenarioRow(s storage.Scenario, pos, total int) {
+	<tr
+		class="scn-row"
 		id={ fmt.Sprintf("scenario-%d", s.ID) }
 		data-id={ fmt.Sprint(s.ID) }
 		data-search={ searchIndex(s) }
-		data-catch-all={ boolAttr(len(s.Match) == 0) }
 	>
-		<div class="path-rank">
-			<span class="rank-node" title={ fmt.Sprintf("Evaluated %d of %d", rank+1, total) }>{ fmt.Sprint(rank + 1) }</span>
-			<span class="mark" data-level={ priorityKey(s.Priority) } aria-hidden="true"></span>
-		</div>
-		<div class="path-segment path-seg-name">
-			<div class="path-name">
+		<td class="col-order">
+			if pos >= 0 {
+				<div class="order">
+					<span class="order-num" data-rank>{ fmt.Sprint(pos + 1) }</span>
+					<span class="order-move">
+						<button
+							type="button"
+							class="btn btn-icon btn-ghost btn-xs"
+							aria-label={ "Move " + s.Name + " up" }
+							title="Move up"
+							disabled?={ pos == 0 }
+							hx-post={ fmt.Sprintf("/scenarios/%d/move?dir=up", s.ID) }
+							hx-target="#scenario-list"
+							hx-select="#scenario-list"
+							hx-swap="outerHTML"
+							data-move="up"
+						>
+							@arrowUpIcon()
+						</button>
+						<button
+							type="button"
+							class="btn btn-icon btn-ghost btn-xs"
+							aria-label={ "Move " + s.Name + " down" }
+							title="Move down"
+							disabled?={ pos == total-1 }
+							hx-post={ fmt.Sprintf("/scenarios/%d/move?dir=down", s.ID) }
+							hx-target="#scenario-list"
+							hx-select="#scenario-list"
+							hx-swap="outerHTML"
+							data-move="down"
+						>
+							@arrowDownIcon()
+						</button>
+					</span>
+				</div>
+			} else {
+				<span class="order-fallback" title="Used when nothing else matches">—</span>
+			}
+		</td>
+		<td class="col-name">
+			<div class="scn-name">
 				<a href={ templ.SafeURL(fmt.Sprintf("/scenarios/%d/edit", s.ID)) }>{ s.Name }</a>
-				<span class="mark" data-level={ priorityKey(s.Priority) }>{ priorityLabel(s.Priority) }</span>
+				<span class="badge" data-priority={ priorityKey(s.Priority) }>{ priorityLabel(s.Priority) }</span>
 			</div>
-			<span class="path-prompt" title={ promptPreview(s.Prompt) }>{ promptPreview(s.Prompt) }</span>
-		</div>
-		<div class="path-segment path-seg-catches">
-			<div class="chips">
-				if len(s.Match) == 0 {
-					<span class="chip" data-open="true">catch-all — anything unmatched above</span>
-				} else {
+			<p class="scn-prompt" title={ promptPreview(s.Prompt) }>{ promptPreview(s.Prompt) }</p>
+		</td>
+		<td class="col-match" data-label="Matches">
+			if len(s.Match) == 0 {
+				<span class="muted">Any alert</span>
+			} else {
+				<div class="chips">
 					for _, p := range matchPairs(s.Match) {
 						<span class="chip"><span class="chip-key">{ p.Key }</span>{ p.Value }</span>
 					}
-				}
-			</div>
-		</div>
-		<div class="path-segment path-seg-runs">
-			<div class="facts">
-				<span><b>Tools</b>{ toolsSummary(s) }</span>
-				<span><b>Budget</b>{ s.Timeout }</span>
+				</div>
+			}
+		</td>
+		<td class="col-run" data-label="Investigation">
+			<ul class="facts">
+				<li>{ toolsSummary(s) }</li>
+				<li>Timeout <span class="mono">{ s.Timeout }</span></li>
 				if s.SendImages {
-					<span><b>Images</b>yes</span>
-				} else {
-					<span data-off="true"><b>Images</b>no</span>
+					<li>Panel images</li>
 				}
-			</div>
-			<div class="chips">
-				if len(destinations(s)) == 0 {
-					<span class="chip" data-open="true">default channels</span>
-				} else {
+			</ul>
+		</td>
+		<td class="col-dest" data-label="Sends to">
+			if len(destinations(s)) == 0 {
+				<span class="muted">Default channels</span>
+			} else {
+				<ul class="facts">
 					for _, d := range destinations(s) {
-						<span class="chip"><span class="chip-key">{ d.Key }</span>{ d.Value }</span>
+						<li>{ d.Key } <span class="mono">{ d.Value }</span></li>
 					}
-				}
-			</div>
-		</div>
-		<div class="path-actions">
-			<div class="path-actions-default">
-				<a href={ templ.SafeURL(fmt.Sprintf("/scenarios/%d/edit", s.ID)) } role="button" class="btn btn-sm">Edit</a>
-				<a href={ templ.SafeURL(fmt.Sprintf("/scenarios/%d/copy", s.ID)) } role="button" class="btn btn-sm">Copy</a>
-				<button type="button" class="btn btn-sm btn-quiet" data-delete-ask aria-label={ "Delete " + s.Name }>
+				</ul>
+			}
+		</td>
+		<td class="col-actions">
+			<div class="row-actions" data-actions>
+				<a href={ templ.SafeURL(fmt.Sprintf("/scenarios/%d/edit", s.ID)) } role="button" class="btn btn-sm">
+					@pencilIcon()
+					Edit
+				</a>
+				<a
+					href={ templ.SafeURL(fmt.Sprintf("/scenarios/%d/copy", s.ID)) }
+					role="button"
+					class="btn btn-sm btn-icon"
+					aria-label={ "Duplicate " + s.Name }
+					title="Duplicate"
+				>
+					@copyIcon()
+				</a>
+				<button
+					type="button"
+					class="btn btn-sm btn-icon btn-danger-quiet"
+					data-delete-ask
+					aria-label={ "Delete " + s.Name }
+					title="Delete"
+				>
 					@trashIcon()
 				</button>
 			</div>
-			<div class="confirm" role="group" aria-label={ "Confirm deleting " + s.Name }>
-				<span>Delete?</span>
+			<div class="row-confirm" role="group" aria-label={ "Confirm deleting " + s.Name }>
+				<span>Delete this scenario?</span>
 				<button
 					type="button"
 					class="btn btn-sm btn-danger"
 					data-delete-confirm
 					hx-delete={ fmt.Sprintf("/scenarios/%d", s.ID) }
-					hx-target={ fmt.Sprintf("#scenario-%d", s.ID) }
+					hx-target="#scenario-list"
+					hx-select="#scenario-list"
 					hx-swap="outerHTML"
-				>Yes, delete</button>
-				<button type="button" class="btn btn-sm" data-delete-cancel>Keep</button>
+				>Delete</button>
+				<button type="button" class="btn btn-sm" data-delete-cancel>Cancel</button>
 			</div>
-		</div>
-	</article>
+		</td>
+	</tr>
 }
 
 // --- editor ----------------------------------------------------------------
@@ -313,34 +410,20 @@ func formTitle(isEdit bool) string {
 	return "New scenario"
 }
 
-func formLede(isEdit bool) string {
-	if isEdit {
-		return "Changes take effect for the next alert the agent receives."
-	}
-	return "A new path in the panel: what it catches, how it investigates, where the report lands."
-}
-
 templ ScenarioFormPage(s *storage.Scenario, isEdit bool, formErr string) {
 	@Layout(formTitle(isEdit), "scenario-form") {
-		@PageHead(formTitle(isEdit), formLede(isEdit)) {
-			<a href="/scenarios" role="button" class="btn" data-leave>Back to panel</a>
+		<nav class="crumbs" aria-label="Breadcrumb">
+			<a href="/scenarios" data-leave>
+				@chevronLeftIcon()
+				Scenarios
+			</a>
+		</nav>
+		@PageHead(formTitle(isEdit), "Changes apply to the next alert the agent receives.") {
 		}
 		if formErr != "" {
 			@Notice("error", formErr)
 		}
-		<div class="editor">
-			<nav class="rail" data-rail aria-label="Sections">
-				<a href="#section-general">General</a>
-				<a href="#section-matching">Matching</a>
-				<a href="#section-investigation">Investigation</a>
-				<a href="#section-delivery">Delivery</a>
-				<p class="rail-note">
-					Paths are evaluated in order. A path with no match labels catches everything
-					that reached it unmatched.
-				</p>
-			</nav>
-			@ScenarioForm(s, isEdit)
-		</div>
+		@ScenarioForm(s, isEdit)
 		@toolPickerDialog()
 		@grafanaImportDialog()
 	}
@@ -355,167 +438,168 @@ templ ScenarioForm(s *storage.Scenario, isEdit bool) {
 		}
 		hx-target="body"
 		hx-push-url="/scenarios"
-		class="form-stack"
+		class="editor"
 		data-guard-form
 	>
-		<section class="form-section" id="section-general">
-			<div class="form-section-head">
-				<h2 class="form-section-title">General</h2>
-				<span class="form-section-note">Identity, evaluation order, budgets</span>
-			</div>
-			<div class="form-grid">
-				<div class="field-block">
-					<label class="field-label" for="field-name">Name</label>
-					<input type="text" id="field-name" name="name" value={ s.Name } required autocomplete="off"/>
-					<p class="help">Used in logs, YAML export and notification footers. Must be unique.</p>
-				</div>
-				<div class="field-block">
-					<label class="field-label" for="field-order">
-						Order index
-						<span class="optional">lower runs first</span>
-					</label>
-					<input type="number" id="field-order" name="order_index" value={ fmt.Sprint(s.OrderIndex) }/>
-					<p class="help">Ties are broken by name. The first path whose labels match wins.</p>
-				</div>
-			</div>
-			<div class="form-grid" style="margin-top:1rem">
-				<div class="field-block">
-					<label class="field-label" for="field-timeout">Investigation timeout</label>
-					<input type="text" id="field-timeout" name="timeout" class="code" value={ s.Timeout } placeholder="2m" required/>
-					<div class="presets">
-						<button type="button" class="btn btn-sm" data-preset="30s" data-preset-target="field-timeout">30s</button>
-						<button type="button" class="btn btn-sm" data-preset="2m" data-preset-target="field-timeout">2m</button>
-						<button type="button" class="btn btn-sm" data-preset="5m" data-preset-target="field-timeout">5m</button>
-						<button type="button" class="btn btn-sm" data-preset="10m" data-preset-target="field-timeout">10m</button>
+		<section class="card form-card" aria-labelledby="sec-basics">
+			<header class="form-card-head">
+				<h2 class="card-title" id="sec-basics">Basics</h2>
+			</header>
+			<div class="form-card-body">
+				<div class="form-row">
+					<div class="field">
+						<label for="field-name">Name</label>
+						<input type="text" id="field-name" name="name" value={ s.Name } required autocomplete="off"/>
+						<p class="help">Shown in logs, the YAML export and report footers. Must be unique.</p>
 					</div>
-					<p class="help">Go duration. When it elapses, the agent reports what it has so far.</p>
+					<div class="field field-narrow">
+						<label for="field-order">Order</label>
+						<input type="number" id="field-order" name="order_index" value={ fmt.Sprint(s.OrderIndex) }/>
+						<p class="help">Lower numbers are checked first. You can also reorder with the arrows on the scenario list.</p>
+					</div>
 				</div>
-				<div class="field-block">
+				<div class="field">
 					<span class="field-label" id="priority-label">Priority</span>
 					<div class="segmented" role="radiogroup" aria-labelledby="priority-label">
 						<label>
 							<input type="radio" name="priority" value="normal" checked?={ priorityKey(s.Priority) == "normal" }/>
-							<span class="mark" data-level="normal" aria-hidden="true"></span>
-							<span>Normal</span>
+							<span class="dot" data-priority="normal" aria-hidden="true"></span>
+							Normal
 						</label>
 						<label>
 							<input type="radio" name="priority" value="high" checked?={ priorityKey(s.Priority) == "high" }/>
-							<span class="mark" data-level="high" aria-hidden="true"></span>
-							<span>High</span>
+							<span class="dot" data-priority="high" aria-hidden="true"></span>
+							High
 						</label>
 						<label>
 							<input type="radio" name="priority" value="critical" checked?={ priorityKey(s.Priority) == "critical" }/>
-							<span class="mark" data-level="critical" aria-hidden="true"></span>
-							<span>Critical</span>
+							<span class="dot" data-priority="critical" aria-hidden="true"></span>
+							Critical
 						</label>
 					</div>
-					<label class="switch" style="margin-top:0.75rem">
-						<input type="checkbox" name="send_images" checked?={ s.SendImages }/>
-						<span>Attach panel images to the report</span>
-					</label>
 				</div>
 			</div>
 		</section>
-		<section class="form-section" id="section-matching">
-			<div class="form-section-head">
-				<h2 class="form-section-title">Matching</h2>
-				<span class="form-section-note" data-pairs-badge></span>
-			</div>
-			<div class="field-block">
-				<span class="field-label">Alert labels this path catches</span>
+		<section class="card form-card" aria-labelledby="sec-match">
+			<header class="form-card-head">
+				<h2 class="card-title" id="sec-match">Which alerts</h2>
+				<span class="badge" data-pairs-badge></span>
+			</header>
+			<div class="form-card-body">
+				<p class="help help-lead">
+					The alert must carry every label listed here, with exactly these values. It may carry other labels too.
+				</p>
 				<div class="pairs" data-pairs></div>
 				<p class="pairs-empty" data-pairs-empty hidden>
-					No labels — this path is a catch-all and takes every alert that reached it unmatched.
+					<strong>No labels: this is a fallback scenario.</strong>
+					It handles any alert that no other scenario matches.
 				</p>
-				<div class="row-actions">
-					<button type="button" class="btn btn-sm" data-pair-add>Add label</button>
-					<button type="button" class="btn btn-sm" data-grafana-open>Import from Grafana</button>
+				<div class="btn-row">
+					<button type="button" class="btn btn-sm" data-pair-add>
+						@plusIcon()
+						Add label
+					</button>
+					<button type="button" class="btn btn-sm" data-grafana-open>
+						@downloadIcon()
+						Import from Grafana rule
+					</button>
 				</div>
-				<p class="help">
-					All labels listed here must be present on the alert with exactly these values.
-					The alert may carry other labels.
-				</p>
 				<textarea name="match" data-pairs-store hidden aria-hidden="true">{ matchText(s.Match) }</textarea>
 			</div>
 		</section>
-		<section class="form-section" id="section-investigation">
-			<div class="form-section-head">
-				<h2 class="form-section-title">Investigation</h2>
-				<span class="form-section-note">What the agent is told, and what it may use</span>
-			</div>
-			<div class="field-block">
-				<label class="field-label" for="field-prompt">Prompt</label>
-				<textarea
-					id="field-prompt"
-					name="prompt"
-					class="code"
-					rows="4"
-					data-autoresize
-					required
-					placeholder="Investigate the alert. Check the related dashboard, compare against the last 24h, and report the likely cause."
-				>{ s.Prompt }</textarea>
-				<p class="help">
-					Appended to the system prompt for alerts matched by this path. Written for the
-					model, not for a human reader.
-				</p>
-			</div>
-			<div class="field-block" style="margin-top:1rem">
-				<span class="field-label">
-					Allowed tools
-					<span class="optional">empty = all</span>
-				</span>
-				<div class="chips" data-tool-chips></div>
-				<div class="row-actions">
-					<button type="button" class="btn btn-sm" data-tool-open>Choose tools</button>
+		<section class="card form-card" aria-labelledby="sec-invest">
+			<header class="form-card-head">
+				<h2 class="card-title" id="sec-invest">Investigation</h2>
+			</header>
+			<div class="form-card-body">
+				<div class="field">
+					<label for="field-prompt">Instructions for the agent</label>
+					<textarea
+						id="field-prompt"
+						name="prompt"
+						class="mono"
+						rows="5"
+						data-autoresize
+						required
+						placeholder="Investigate the alert. Check the related dashboard, compare against the last 24h, and report the likely cause."
+					>{ s.Prompt }</textarea>
+					<p class="help">Added to the system prompt for alerts this scenario handles.</p>
 				</div>
-				<p class="help">
-					Restricting tools keeps an investigation focused and cheaper. Tools that no
-					connected MCP server offers are marked; they are kept but never called.
-				</p>
-				<input type="text" name="tools" data-tools-store hidden aria-hidden="true" value={ strings.Join([]string(s.Tools), ", ") }/>
+				<div class="field">
+					<span class="field-label">Allowed tools</span>
+					<div class="tool-summary">
+						<div class="chips" data-tool-chips></div>
+						<button type="button" class="btn btn-sm" data-tool-open>Choose tools…</button>
+					</div>
+					<p class="help">Leave empty to allow every tool. Tools that no connected MCP server offers are marked and never called.</p>
+					<input type="text" name="tools" data-tools-store hidden aria-hidden="true" value={ strings.Join([]string(s.Tools), ", ") }/>
+				</div>
+				<div class="field">
+						<label for="field-timeout">Timeout</label>
+						<div class="input-with-presets">
+							<input type="text" id="field-timeout" name="timeout" class="mono" value={ s.Timeout } placeholder="2m" required spellcheck="false"/>
+							<div class="presets" role="group" aria-label="Timeout presets">
+								<button type="button" class="btn btn-sm" data-preset="30s" data-preset-target="field-timeout">30s</button>
+								<button type="button" class="btn btn-sm" data-preset="2m" data-preset-target="field-timeout">2m</button>
+								<button type="button" class="btn btn-sm" data-preset="5m" data-preset-target="field-timeout">5m</button>
+								<button type="button" class="btn btn-sm" data-preset="10m" data-preset-target="field-timeout">10m</button>
+							</div>
+						</div>
+						<p class="help">When it runs out, the agent reports what it has found so far.</p>
+				</div>
+				<label class="switch">
+					<input type="checkbox" name="send_images" checked?={ s.SendImages }/>
+					<span class="switch-text">
+						<span>Attach Grafana panel images to the report</span>
+					</span>
+				</label>
 			</div>
 		</section>
-		<section class="form-section" id="section-delivery">
-			<div class="form-section-head">
-				<h2 class="form-section-title">Delivery</h2>
-				<span class="form-section-note">Overrides the default channels</span>
-			</div>
-			<div class="form-grid">
-				<div class="field-block">
-					<label class="field-label" for="field-telegram">
-						Telegram
-						<span class="optional">optional</span>
-					</label>
-					<input type="text" id="field-telegram" name="channel_telegram" class="code" value={ s.ChannelTelegram } placeholder="-100123456789"/>
-				</div>
-				<div class="field-block">
-					<label class="field-label" for="field-slack">
-						Slack
-						<span class="optional">optional</span>
-					</label>
-					<input type="text" id="field-slack" name="channel_slack" class="code" value={ s.ChannelSlack } placeholder="#alerts"/>
+		<section class="card form-card" aria-labelledby="sec-delivery">
+			<header class="form-card-head">
+				<h2 class="card-title" id="sec-delivery">Delivery</h2>
+			</header>
+			<div class="form-card-body">
+				<p class="help help-lead">Leave both empty to use the agent's default channels.</p>
+				<div class="form-row">
+					<div class="field">
+						<label for="field-telegram">Telegram chat ID</label>
+						<input type="text" id="field-telegram" name="channel_telegram" class="mono" value={ s.ChannelTelegram } placeholder="-100123456789" spellcheck="false"/>
+					</div>
+					<div class="field">
+						<label for="field-slack">Slack channel</label>
+						<input type="text" id="field-slack" name="channel_slack" class="mono" value={ s.ChannelSlack } placeholder="#alerts" spellcheck="false"/>
+					</div>
 				</div>
 			</div>
-			<p class="help" style="margin-top:0.75rem">
-				Leave both empty to use the channels configured for the agent. A channel set here
-				applies only to alerts caught by this path.
-			</p>
 		</section>
-		<div class="row-actions">
-			<button type="submit" class="btn btn-primary">
-				<span class="btn-idle">
+		<div class="save-bar">
+			<div class="save-bar-inner">
+				<span class="save-state" data-save-state aria-live="polite">
 					if isEdit {
-						Save changes
+						No unsaved changes
 					} else {
-						Create scenario
+						Not created yet
 					}
 				</span>
-				<span class="btn-working">
-					@spinnerIcon()
-					Saving…
-				</span>
-			</button>
-			<a href="/scenarios" role="button" class="btn" data-leave>Cancel</a>
+				<div class="btn-row">
+					<a href="/scenarios" role="button" class="btn" data-leave>Cancel</a>
+					<button type="submit" class="btn btn-primary">
+						<span class="btn-idle">
+							if isEdit {
+								Save changes
+							} else {
+								Create scenario
+							}
+						</span>
+						<span class="btn-working">
+							@spinnerIcon()
+							Saving…
+						</span>
+						<kbd class="kbd-on-primary" aria-hidden="true">Ctrl S</kbd>
+					</button>
+				</div>
+			</div>
 		</div>
 	</form>
 }
@@ -525,19 +609,22 @@ templ ScenarioForm(s *storage.Scenario, isEdit bool) {
 templ toolPickerDialog() {
 	<dialog id="tool-picker" aria-labelledby="tool-picker-title">
 		<div class="dialog-head">
-			<h2 id="tool-picker-title" class="form-section-title">MCP tools</h2>
-			<button type="button" class="icon-button" data-dialog-close aria-label="Close">
+			<h2 id="tool-picker-title" class="card-title">Allowed tools</h2>
+			<button type="button" class="btn btn-icon btn-ghost" data-dialog-close aria-label="Close">
 				@closeIcon()
 			</button>
 		</div>
 		<div class="dialog-body">
-			<input type="search" data-tool-search placeholder="Search tools" aria-label="Search tools" autocomplete="off"/>
+			<label class="search">
+				@searchIcon()
+				<input type="search" data-tool-search placeholder="Search tools" aria-label="Search tools" autocomplete="off"/>
+			</label>
 			<p class="help" data-tool-status></p>
-			<div class="tool-list" data-tool-list></div>
+			<div class="pick-list" data-tool-list></div>
 		</div>
 		<div class="dialog-foot">
-			<button type="button" class="btn btn-sm" data-tool-clear>Allow all tools</button>
-			<button type="button" class="btn btn-primary btn-sm" data-dialog-close>Done</button>
+			<button type="button" class="btn" data-tool-clear>Allow all tools</button>
+			<button type="button" class="btn btn-primary" data-dialog-close>Done</button>
 		</div>
 	</dialog>
 }
@@ -545,31 +632,22 @@ templ toolPickerDialog() {
 templ grafanaImportDialog() {
 	<dialog id="grafana-import" aria-labelledby="grafana-import-title">
 		<div class="dialog-head">
-			<h2 id="grafana-import-title" class="form-section-title">Grafana alert rules</h2>
-			<button type="button" class="icon-button" data-dialog-close aria-label="Close">
+			<h2 id="grafana-import-title" class="card-title">Import labels from a Grafana rule</h2>
+			<button type="button" class="btn btn-icon btn-ghost" data-dialog-close aria-label="Close">
 				@closeIcon()
 			</button>
 		</div>
 		<div class="dialog-body">
-			<input type="search" data-grafana-search placeholder="Search by name, group or label" aria-label="Search alert rules" autocomplete="off"/>
+			<label class="search">
+				@searchIcon()
+				<input type="search" data-grafana-search placeholder="Search by name, group or label" aria-label="Search alert rules" autocomplete="off"/>
+			</label>
 			<p class="help" data-grafana-status></p>
-			<div class="tool-list" data-grafana-list></div>
+			<div class="pick-list" data-grafana-list></div>
 		</div>
 		<div class="dialog-foot">
-			<p class="help">Selecting a rule replaces the labels above with its own.</p>
-			<button type="button" class="btn btn-sm" data-dialog-close>Cancel</button>
+			<p class="help">Choosing a rule replaces the current labels with the rule's own.</p>
+			<button type="button" class="btn" data-dialog-close>Cancel</button>
 		</div>
 	</dialog>
-}
-
-templ trashIcon() {
-	<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" aria-hidden="true">
-		<path d="M4.4 6.4h15.2M9.4 6.4V4.4h5.2v2M6.8 6.4l.9 13.2h8.6l.9-13.2M10.2 9.8v6.4M13.8 9.8v6.4"></path>
-	</svg>
-}
-
-templ closeIcon() {
-	<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-		<path d="M6 6l12 12M18 6L6 18"></path>
-	</svg>
 }

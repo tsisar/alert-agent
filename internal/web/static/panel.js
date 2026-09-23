@@ -1,4 +1,4 @@
-/* Alert Agent panel behaviour.
+/* Alert Agent web UI behaviour.
    Progressive: every control here enhances markup that already works. */
 (function () {
 	"use strict";
@@ -12,6 +12,29 @@
 	function $$(sel, root) {
 		return Array.prototype.slice.call((root || doc).querySelectorAll(sel));
 	}
+
+	function escapeHTML(s) {
+		return String(s).replace(/[&<>"']/g, function (c) {
+			return {
+				"&": "&amp;",
+				"<": "&lt;",
+				">": "&gt;",
+				'"': "&quot;",
+				"'": "&#39;"
+			}[c];
+		});
+	}
+
+	var SVG_OPEN =
+		'<svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">';
+	var ICON_CHECK = SVG_OPEN + '<circle cx="12" cy="12" r="9"/><path d="m8 12.5 2.7 2.7L16.5 9.5"/></svg>';
+	var ICON_ALERT =
+		SVG_OPEN +
+		'<path d="M10.3 3.9 2.4 17.6A2 2 0 0 0 4.1 20.6h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9.5v4.2M12 16.8v.2"/></svg>';
+	var ICON_SPIN =
+		'<svg class="icon spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 3.2a8.8 8.8 0 1 0 8.8 8.8"/></svg>';
+	var ICON_X = SVG_OPEN + '<path d="M6 6l12 12M18 6L6 18"/></svg>';
+	var ICON_CHEVRON = SVG_OPEN + '<path d="m9 5 7 7-7 7"/></svg>';
 
 	/* --- Theme ---------------------------------------------------------- */
 
@@ -54,13 +77,12 @@
 		});
 	}
 
-	/* --- Scenario field: filter ----------------------------------------- */
+	/* --- Scenario list: filter ------------------------------------------ */
 
 	function initFilter() {
 		var input = $("[data-filter-input]");
 		var field = $("[data-field]");
-		if (!input || !field) return;
-		if (input.dataset.bound) return;
+		if (!input || !field || input.dataset.bound) return;
 		input.dataset.bound = "1";
 
 		var countEl = $("[data-filter-count]");
@@ -68,16 +90,28 @@
 
 		function apply() {
 			var q = input.value.trim().toLowerCase();
+			var rows = $$(".scn-row", field);
 			var shown = 0;
-			$$(".path", field).forEach(function (row) {
+			rows.forEach(function (row) {
 				var hit = !q || (row.dataset.search || "").indexOf(q) !== -1;
 				row.hidden = !hit;
 				if (hit) shown++;
 			});
+			// While filtering, drop group headers and notes whose rows are all hidden.
+			$$("tbody", field).forEach(function (group) {
+				var any = $$(".scn-row", group).some(function (r) {
+					return !r.hidden;
+				});
+				$$(".group-head, .group-note", group).forEach(function (el) {
+					el.hidden = !!q && !any;
+				});
+			});
+			field.hidden = !!q && shown === 0;
 			if (countEl) {
+				var n = rows.length;
 				countEl.textContent = q
-					? shown + " of " + $$(".path", field).length + " shown"
-					: $$(".path", field).length + " total";
+					? shown + " of " + n + " shown"
+					: n + (n === 1 ? " scenario" : " scenarios");
 			}
 			if (emptyEl) emptyEl.hidden = shown !== 0 || !q;
 		}
@@ -90,32 +124,36 @@
 				apply();
 				return;
 			}
-			// Typing narrows to one path; Enter opens it without touching the mouse.
+			// Typing narrows to one scenario; Enter opens it without the mouse.
 			if (e.key === "Enter") {
 				e.preventDefault();
-				var visible = $$(".path", field).filter(function (row) {
+				var visible = $$(".scn-row", field).filter(function (row) {
 					return !row.hidden;
 				});
 				if (visible.length === 1) {
-					var link = $(".path-name a", visible[0]);
+					var link = $(".scn-name a", visible[0]);
 					if (link) window.location.href = link.href;
 				}
 			}
 		});
 
+		apply();
+	}
+
+	function initSlashKey() {
 		doc.addEventListener("keydown", function (e) {
 			if (e.key !== "/" || e.metaKey || e.ctrlKey || e.altKey) return;
 			var tag = (doc.activeElement && doc.activeElement.tagName) || "";
 			if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+			var input = $("[data-filter-input]");
+			if (!input) return;
 			e.preventDefault();
 			input.focus();
 			input.select();
 		});
-
-		apply();
 	}
 
-	/* --- Scenario field: match probe ------------------------------------ */
+	/* --- Scenario list: test an alert ----------------------------------- */
 
 	function initProbe() {
 		var form = $("[data-probe-form]");
@@ -124,10 +162,9 @@
 
 		var input = $("[data-probe-input]", form);
 		var out = $("[data-probe-result]");
-		var field = $("[data-field]");
 
 		function clearLive() {
-			$$(".path[data-live]", field).forEach(function (row) {
+			$$(".scn-row[data-live]").forEach(function (row) {
 				row.removeAttribute("data-live");
 			});
 		}
@@ -136,7 +173,9 @@
 			if (!out) return;
 			out.hidden = false;
 			out.setAttribute("data-outcome", outcome);
-			out.innerHTML = html;
+			var icon =
+				outcome === "match" ? ICON_CHECK : outcome === "pending" ? ICON_SPIN : ICON_ALERT;
+			out.innerHTML = icon + "<div>" + html + "</div>";
 		}
 
 		form.addEventListener("submit", function (e) {
@@ -145,12 +184,13 @@
 			clearLive();
 			if (!labels) {
 				render(
-					"none",
-					"<span class='probe-result-note'>Enter at least one <span class='mono'>key=value</span> label to test.</span>"
+					"error",
+					"Enter at least one <span class='mono'>key=value</span> label, for example <span class='mono'>alertname=HighCPU</span>."
 				);
+				input.focus();
 				return;
 			}
-			render("pending", "<span class='probe-result-note'>Matching…</span>");
+			render("pending", "<span class='probe-result-note'>Testing…</span>");
 
 			fetch("/api/match-probe", {
 				method: "POST",
@@ -158,73 +198,60 @@
 				body: JSON.stringify({ labels: labels })
 			})
 				.then(function (res) {
-					if (!res.ok) throw new Error("probe failed: " + res.status);
+					if (!res.ok) throw new Error("the server answered " + res.status);
 					return res.json();
 				})
 				.then(function (data) {
 					if (data.error) {
-						render("error", "<span>" + escapeHTML(data.error) + "</span>");
+						render("error", escapeHTML(data.error));
 						return;
 					}
 					if (!data.matched) {
 						render(
 							"none",
-							"<span><strong>No scenario catches this alert.</strong> <span class='probe-result-note'>Nothing matches these labels and there is no catch-all scenario, so the alert would be dropped.</span></span>"
+							"<strong>No scenario handles this alert.</strong> <span class='probe-result-note'>Nothing matches these labels and there is no fallback scenario, so the alert would be dropped.</span>"
 						);
 						return;
 					}
-					var row = field && field.querySelector('.path[data-id="' + data.id + '"]');
+					// The list is re-rendered by reorder and delete, so look it up now.
+					var row = $('.scn-row[data-id="' + data.id + '"]');
 					var hiddenByFilter = false;
 					if (row) {
 						row.setAttribute("data-live", "true");
 						// The filter owns row.hidden. Un-hiding here would leave the
-						// count contradicting the field, so say so instead.
+						// count contradicting the list, so say so instead.
 						hiddenByFilter = row.hidden;
 						if (!hiddenByFilter) {
 							row.scrollIntoView({ block: "nearest", behavior: "smooth" });
 						}
 					}
-					var rankEl = row && row.querySelector(".rank-node");
-					var rank = rankEl ? rankEl.textContent.trim() : "";
-					var total = field ? $$(".path", field).length : 0;
-					var where = rank ? ", path " + rank + " of " + total : "";
+					var rankEl = row && row.querySelector("[data-rank]");
+					var where = rankEl ? " (#" + rankEl.textContent.trim() + ")" : "";
 					var why =
 						data.reason === "catch-all"
-							? "No labelled scenario matched, so the catch-all takes it."
-							: "Matched on " + escapeHTML(data.matchedOn) + ".";
+							? "No scenario matched these labels, so the fallback handles it."
+							: "Matched on <span class='mono'>" + escapeHTML(data.matchedOn) + "</span>.";
 					if (hiddenByFilter) {
 						why += " It is hidden by the current filter.";
 					}
 					render(
 						"match",
-						"<span><strong>" +
+						"Handled by <strong>" +
 							escapeHTML(data.name) +
 							"</strong>" +
 							where +
-							", catches this alert. <span class='probe-result-note'>" +
+							". <span class='probe-result-note'>" +
 							why +
-							"</span></span>"
+							"</span>"
 					);
 				})
 				.catch(function (err) {
-					render("error", "<span>" + escapeHTML(String(err.message || err)) + "</span>");
+					render("error", "The test could not run: " + escapeHTML(String(err.message || err)) + ".");
 				});
 		});
 	}
 
-	function escapeHTML(s) {
-		return String(s).replace(/[&<>"']/g, function (c) {
-			return {
-				"&": "&amp;",
-				"<": "&lt;",
-				">": "&gt;",
-				'"': "&quot;",
-				"'": "&#39;"
-			}[c];
-		});
-	}
-
-	/* --- Scenario field: inline delete confirm --------------------------- */
+	/* --- Scenario list: inline delete confirm --------------------------- */
 
 	function closeConfirm(row, restoreFocus) {
 		if (!row) return;
@@ -239,67 +266,36 @@
 		doc.addEventListener("click", function (e) {
 			var ask = e.target.closest("[data-delete-ask]");
 			if (ask) {
-				var row = ask.closest(".path");
+				var row = ask.closest(".scn-row");
 				if (!row) return;
+				$$('.scn-row[data-confirming="true"]').forEach(function (other) {
+					if (other !== row) closeConfirm(other, false);
+				});
 				row.setAttribute("data-confirming", "true");
-				// The button that was just pressed is now display:none, so move
-				// focus deliberately instead of letting it fall to <body>.
+				// The pressed button is now hidden, so move focus deliberately
+				// instead of letting it fall to <body>.
 				var confirm = $("[data-delete-confirm]", row);
 				if (confirm) confirm.focus();
 				return;
 			}
 			var cancel = e.target.closest("[data-delete-cancel]");
 			if (cancel) {
-				closeConfirm(cancel.closest(".path"), true);
+				closeConfirm(cancel.closest(".scn-row"), true);
 			}
 		});
 
 		doc.addEventListener("keydown", function (e) {
 			if (e.key !== "Escape") return;
-			var row = doc.activeElement && doc.activeElement.closest
-				? doc.activeElement.closest('.path[data-confirming="true"]')
-				: null;
-			if (!row) row = $('.path[data-confirming="true"]');
+			var row =
+				doc.activeElement && doc.activeElement.closest
+					? doc.activeElement.closest('.scn-row[data-confirming="true"]')
+					: null;
+			if (!row) row = $('.scn-row[data-confirming="true"]');
 			if (row) {
 				e.stopPropagation();
 				closeConfirm(row, true);
 			}
 		});
-	}
-
-	/* --- Editor: margin rail -------------------------------------------- */
-
-	function initRail() {
-		var rail = $("[data-rail]");
-		if (!rail || rail.dataset.bound) return;
-		if (!("IntersectionObserver" in window)) return;
-		rail.dataset.bound = "1";
-		var links = $$("a", rail);
-		var sections = links
-			.map(function (a) {
-				return doc.getElementById(a.getAttribute("href").slice(1));
-			})
-			.filter(Boolean);
-		if (!sections.length) return;
-
-		function setActive(id) {
-			links.forEach(function (a) {
-				a.classList.toggle("is-active", a.getAttribute("href") === "#" + id);
-			});
-		}
-
-		var observer = new IntersectionObserver(
-			function (entries) {
-				entries.forEach(function (entry) {
-					if (entry.isIntersecting) setActive(entry.target.id);
-				});
-			},
-			{ rootMargin: "-80px 0px -60% 0px", threshold: 0 }
-		);
-		sections.forEach(function (s) {
-			observer.observe(s);
-		});
-		setActive(sections[0].id);
 	}
 
 	/* --- Editor: match label pairs -------------------------------------- */
@@ -321,7 +317,7 @@
 		if (badge) {
 			badge.textContent = lines.length
 				? lines.length + (lines.length === 1 ? " label" : " labels")
-				: "catch-all";
+				: "Fallback";
 		}
 	}
 
@@ -329,11 +325,11 @@
 		var row = doc.createElement("div");
 		row.className = "pair";
 		row.innerHTML =
-			'<input type="text" class="code" data-pair-key placeholder="alertname" aria-label="Label name">' +
+			'<input type="text" class="mono" data-pair-key placeholder="alertname" aria-label="Label name" spellcheck="false">' +
 			'<span class="pair-eq" aria-hidden="true">=</span>' +
-			'<input type="text" class="code" data-pair-value placeholder="HighCPU" aria-label="Label value">' +
-			'<button type="button" class="icon-button" data-pair-remove aria-label="Remove label">' +
-			'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>' +
+			'<input type="text" class="mono" data-pair-value placeholder="HighCPU" aria-label="Label value" spellcheck="false">' +
+			'<button type="button" class="btn btn-icon btn-ghost" data-pair-remove aria-label="Remove label" title="Remove label">' +
+			ICON_X +
 			"</button>";
 		$("[data-pair-key]", row).value = key || "";
 		$("[data-pair-value]", row).value = value || "";
@@ -377,6 +373,7 @@
 			var next = row.nextElementSibling || row.previousElementSibling;
 			row.remove();
 			syncPairs();
+			markDirty();
 			if (next) {
 				var focus = $("[data-pair-key]", next);
 				if (focus) focus.focus();
@@ -414,7 +411,7 @@
 			var all = doc.createElement("span");
 			all.className = "chip";
 			all.setAttribute("data-open", "true");
-			all.textContent = "every available tool";
+			all.textContent = "All tools";
 			wrap.appendChild(all);
 			return;
 		}
@@ -435,7 +432,7 @@
 			rm.type = "button";
 			rm.className = "chip-remove";
 			rm.setAttribute("aria-label", "Remove " + name);
-			rm.textContent = "×";
+			rm.innerHTML = ICON_X;
 			rm.addEventListener("click", function () {
 				var next = selectedTools().filter(function (t) {
 					return t !== name;
@@ -520,10 +517,9 @@
 			function status(count) {
 				var line =
 					rows.length + " of " + (toolState.meta.length + stale.length) +
-					" tools · " + count + " selected";
+					" tools · " + (count ? count + " selected" : "none selected, so all are allowed");
 				if (stale.length) {
-					line +=
-						" · " + stale.length + " no longer offered by any connected server";
+					line += " · " + stale.length + " no longer offered by any connected server";
 				}
 				return line;
 			}
@@ -532,7 +528,7 @@
 
 			rows.forEach(function (t) {
 				var row = doc.createElement("label");
-				row.className = "tool-row";
+				row.className = "pick-row";
 				var box = doc.createElement("input");
 				box.type = "checkbox";
 				box.value = t.name;
@@ -553,15 +549,15 @@
 				});
 				var text = doc.createElement("span");
 				text.innerHTML =
-					'<span class="tool-name"' +
+					'<span class="pick-name"' +
 					(t.stale ? ' data-stale="true"' : "") +
 					">" +
 					escapeHTML(t.name) +
 					"</span>" +
 					(t.stale
-						? '<span class="tool-desc">No connected MCP server offers this tool. It is kept but never called.</span>'
+						? '<span class="pick-desc">No connected MCP server offers this tool. It is kept but never called.</span>'
 						: t.description
-						? '<span class="tool-desc">' + escapeHTML(t.description) + "</span>"
+						? '<span class="pick-desc">' + escapeHTML(t.description) + "</span>"
 						: "");
 				row.appendChild(box);
 				row.appendChild(text);
@@ -593,8 +589,7 @@
 		}
 	}
 
-
-	/* --- Editor: import labels from a Grafana alert rule ------------------ */
+	/* --- Editor: import labels from a Grafana alert rule ---------------- */
 
 	function initGrafanaImport() {
 		var open = $("[data-grafana-open]");
@@ -648,8 +643,7 @@
 			rows.forEach(function (rule) {
 				var row = doc.createElement("button");
 				row.type = "button";
-				row.className = "tool-row";
-				row.style.textAlign = "left";
+				row.className = "pick-row";
 				var chips = labelsOf(rule)
 					.map(function (p) {
 						return (
@@ -662,14 +656,14 @@
 					})
 					.join("");
 				row.innerHTML =
-					'<span aria-hidden="true">&rsaquo;</span>' +
-					'<span><span class="tool-name">' +
+					ICON_CHEVRON +
+					'<span><span class="pick-name">' +
 					escapeHTML(rule.title || "(untitled rule)") +
 					"</span>" +
 					(rule.rule_group
-						? '<span class="tool-desc">' + escapeHTML(rule.rule_group) + "</span>"
+						? '<span class="pick-desc">' + escapeHTML(rule.rule_group) + "</span>"
 						: "") +
-					'<span class="chips" style="margin-top:4px">' +
+					'<span class="chips">' +
 					chips +
 					"</span></span>";
 				row.addEventListener("click", function () {
@@ -713,7 +707,7 @@
 		});
 	}
 
-	/* --- Editor: timeout presets and dirty guard ------------------------- */
+	/* --- Editor: timeout presets, unsaved state, Ctrl+S ----------------- */
 
 	function initPresets() {
 		$$("[data-preset]").forEach(function (btn) {
@@ -733,6 +727,11 @@
 
 	function markDirty() {
 		dirty = true;
+		var state = $("[data-save-state]");
+		if (state && state.getAttribute("data-state") !== "dirty") {
+			state.setAttribute("data-state", "dirty");
+			state.textContent = "Unsaved changes";
+		}
 	}
 
 	function initDirtyGuard() {
@@ -741,13 +740,9 @@
 		form.dataset.bound = "1";
 		dirty = false;
 		form.addEventListener("input", markDirty);
+		form.addEventListener("change", markDirty);
 		form.addEventListener("submit", function () {
 			dirty = false;
-		});
-		window.addEventListener("beforeunload", function (e) {
-			if (!dirty) return;
-			e.preventDefault();
-			e.returnValue = "";
 		});
 		$$("[data-leave]").forEach(function (a) {
 			a.addEventListener("click", function () {
@@ -756,7 +751,80 @@
 		});
 	}
 
-	/* --- Prompts: dirty / saved state ------------------------------------ */
+	// Registered once: the handlers look up the current page at key time.
+	function initGlobalKeys() {
+		window.addEventListener("beforeunload", function (e) {
+			if (!dirty || !$("[data-guard-form]")) return;
+			e.preventDefault();
+			e.returnValue = "";
+		});
+		doc.addEventListener("keydown", function (e) {
+			if (!(e.ctrlKey || e.metaKey) || e.altKey || (e.key || "").toLowerCase() !== "s") return;
+			var form = $("[data-guard-form]");
+			if (form) {
+				e.preventDefault();
+				if (form.reportValidity()) htmx.trigger(form, "submit");
+				return;
+			}
+			var stage = $("[data-stage][data-active]") || $("[data-stage]");
+			var save = stage && $("[data-stage-save]", stage);
+			if (!save) return;
+			e.preventDefault();
+			if (!save.disabled) htmx.trigger($("form", stage), "submit");
+		});
+	}
+
+	/* --- Prompts: tabs -------------------------------------------------- */
+
+	function initTabs() {
+		var bar = $("[data-tabs]");
+		var list = $(".stage-list");
+		if (!bar || !list) return;
+		var tabs = $$("[data-tab]", bar);
+		if (!tabs.length) return;
+		list.setAttribute("data-tabbed", "");
+
+		function select(id, focus) {
+			if (!id || !doc.getElementById(id)) id = tabs[0].dataset.tab;
+			tabs.forEach(function (t) {
+				var on = t.dataset.tab === id;
+				t.setAttribute("aria-selected", on ? "true" : "false");
+				t.tabIndex = on ? 0 : -1;
+				if (on && focus) t.focus();
+			});
+			$$("[data-stage]", list).forEach(function (st) {
+				if (st.id === id) st.setAttribute("data-active", "");
+				else st.removeAttribute("data-active");
+			});
+			bar.dataset.current = id;
+		}
+
+		if (!bar.dataset.bound) {
+			bar.dataset.bound = "1";
+			bar.addEventListener("click", function (e) {
+				var t = e.target.closest("[data-tab]");
+				if (!t) return;
+				e.preventDefault();
+				select(t.dataset.tab);
+				try {
+					history.replaceState(null, "", "#" + t.dataset.tab);
+				} catch (err) {}
+			});
+			bar.addEventListener("keydown", function (e) {
+				if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+				e.preventDefault();
+				var i = tabs.findIndex(function (t) {
+					return t.dataset.tab === bar.dataset.current;
+				});
+				i = (i + (e.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length;
+				select(tabs[i].dataset.tab, true);
+			});
+		}
+		// Re-applied after htmx swaps a stage, which arrives without data-active.
+		select(bar.dataset.current || location.hash.slice(1));
+	}
+
+	/* --- Prompts: unsaved / saved state --------------------------------- */
 
 	function initPrompts(root) {
 		$$("[data-stage]", root).forEach(function (stage) {
@@ -786,7 +854,9 @@
 				if (!state) return;
 				state.setAttribute("data-state", next);
 				state.textContent =
-					next === "dirty" ? "Unsaved changes" : next === "saved" ? "Saved" : "In sync";
+					next === "dirty" ? "Unsaved changes" : next === "saved" ? "Saved" : "Up to date";
+				var tab = $('[data-tab="' + stage.id + '"]');
+				if (tab) tab.setAttribute("data-state", next);
 				if (save) save.disabled = next !== "dirty";
 				if (revert) revert.disabled = next !== "dirty";
 			}
@@ -809,15 +879,14 @@
 		});
 	}
 
-	/* --- Boot ------------------------------------------------------------ */
+	/* --- Boot ----------------------------------------------------------- */
 
-	// mount is idempotent: htmx replaces whole page bodies, so everything here
-	// has to survive being called again against fresh DOM.
+	// mount is idempotent: htmx replaces whole page bodies and fragments, so
+	// everything here has to survive being called again against fresh DOM.
 	function mount(root) {
 		initTheme();
 		initFilter();
 		initProbe();
-		initRail();
 		initPairs();
 		initTools();
 		initGrafanaImport();
@@ -825,15 +894,33 @@
 		initDirtyGuard();
 		initAutoResize(root || doc);
 		initPrompts(root || doc);
+		initTabs();
 	}
+
+	// After a reorder, keep keyboard focus on the arrow that was pressed.
+	var pendingMove = null;
 
 	doc.addEventListener("DOMContentLoaded", function () {
 		initDeleteConfirm();
+		initSlashKey();
+		initGlobalKeys();
 		mount(doc);
+	});
+
+	doc.body.addEventListener("htmx:beforeRequest", function (e) {
+		var btn = e.target.closest && e.target.closest("[data-move]");
+		pendingMove = btn ? { row: btn.closest(".scn-row").id, dir: btn.dataset.move } : null;
 	});
 
 	doc.body.addEventListener("htmx:afterSwap", function () {
 		mount(doc);
+		if (pendingMove) {
+			var row = doc.getElementById(pendingMove.row);
+			var btn = row && $('[data-move="' + pendingMove.dir + '"]', row);
+			if (btn && btn.disabled) btn = $("[data-move]:not([disabled])", row);
+			if (btn) btn.focus();
+			pendingMove = null;
+		}
 	});
 
 	if (doc.fonts && doc.fonts.ready) {

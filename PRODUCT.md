@@ -57,8 +57,14 @@ time budget, destination.
 ## Brand Commitments
 
 Name "Alert Agent". Light and dark themes are both required, remembered per browser
-(confirmed by the user, 2026-09-18). No other visual constraint — palette, typography and
-component language are free to be replaced.
+(confirmed by the user, 2026-09-18).
+
+Standing preference (user, 2026-09-23): a familiar, conventional tool UI in the register of
+Grafana, Linear and GitHub settings. The previous distinctive "instrument panel" world was
+rejected because it took too long to find what to click. Discoverability of actions beats
+visual distinctiveness: every action visible and labelled, one clear primary button per
+surface, standard controls. The actions used most are testing an alert, ordering
+scenarios, and editing/saving a scenario.
 
 ## Evidence on Hand
 

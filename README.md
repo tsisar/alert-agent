@@ -239,30 +239,31 @@ context for a new on-call engineer: "when you see this alert, check X and Y".
 
 ## Web UI
 
-The built-in web UI is a signal panel: every scenario is drawn as one path from the
-labels it catches, through the investigation it runs, to the channel it reports to.
-Paths are listed in evaluation order, so "which rule takes this alert" is readable
-without opening anything.
+The built-in web UI is where you configure how the agent behaves. Every action is a
+visible, labelled button; nothing is hidden behind hover.
 
-- **Signal panel** (`/scenarios`) — all paths in evaluation order, with a filter
-  (`/` focuses it) over names, labels, tools and channels.
-- **Match probe** — paste an alert's labels into *Test an alert* and the panel marks
-  the path that would catch it. It calls the same matcher the webhook uses, so the
-  answer cannot drift from the agent's real behaviour.
+- **Scenarios** (`/scenarios`) — a table in evaluation order: each alert is handled by
+  the first scenario whose labels it matches. Reorder with the up/down arrows; Edit,
+  Duplicate and Delete sit on every row. Fallback (catch-all) scenarios are grouped
+  at the bottom, with a warning when there is none. A filter (`/` focuses it) searches
+  names, labels, tools and channels.
+- **Test an alert** — enter an alert's labels and the list highlights the scenario
+  that would handle it. It calls the same matcher the webhook uses, so the answer
+  cannot drift from the agent's real behaviour.
 - **Scenario editor** — label pairs instead of free text, an MCP tool picker that
   marks tools no connected server offers any more, timeout presets, inline
-  validation errors, and an unsaved-changes guard.
-- **Prompt stages** (`/prompts`) — the four templates with per-stage dirty state,
-  revert, and save.
+  validation errors, and a sticky Save bar with an unsaved-changes indicator
+  (Ctrl+S saves).
+- **Prompts** (`/prompts`) — the four templates as tabs, each with its own unsaved
+  state, discard, and save.
 - **YAML export/import** — the UI and the file stay interchangeable.
 - **Grafana import** — pull an alert rule's labels straight into the match editor.
 
 Tech stack: Go templates ([Templ](https://templ.guide/)), [HTMX](https://htmx.org/),
-hand-written CSS, and self-hosted [Overpass](https://fonts.google.com/specimen/Overpass)
-(a Highway Gothic descendant — signage lettering for a routing panel). No Node.js build
-step and no CDN: CSS, JS, fonts and templates are all embedded in the Go binary, so the
-UI works in an air-gapped cluster. Light and dark themes are both first-class; the
-choice is remembered per browser and falls back to the OS preference.
+hand-written CSS and the system font stack. No Node.js build step and no CDN: CSS, JS
+and templates are all embedded in the Go binary, so the UI works in an air-gapped
+cluster. Light and dark themes are both first-class; the choice is remembered per
+browser and falls back to the OS preference.
 
 The durable design decisions live in [DESIGN.md](DESIGN.md).
 
