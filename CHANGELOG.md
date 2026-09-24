@@ -55,6 +55,7 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/
 
 ### Fixed
 
+- Alert cooldown now applies to each alert (fingerprint) instead of the whole notification group, so a new alert joining an already-reported group is investigated instead of being suppressed; resolving one alert frees only its own slot
 - Saving a scenario with an invalid field no longer fails silently: htmx does not
   swap error responses, so a rejected save previously looked like nothing happened.
   The editor is now re-rendered with the submitted values and a stated reason.

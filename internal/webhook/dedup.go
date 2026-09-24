@@ -7,21 +7,21 @@ import (
 	"time"
 )
 
-// dedupKey returns a short hex digest of the raw groupKey so that
+// dedupKey returns a short hex digest of the raw dedup key so that
 // special characters (quotes, braces, slashes) don't cause issues
 // when used as map keys or Redis keys.
-func dedupKey(groupKey string) string {
-	h := sha256.Sum256([]byte(groupKey))
+func dedupKey(key string) string {
+	h := sha256.Sum256([]byte(key))
 	return hex.EncodeToString(h[:])
 }
 
 // DedupStore is the interface for alert deduplication.
 type DedupStore interface {
-	ShouldProcess(groupKey string) bool
-	Clear(groupKey string)
+	ShouldProcess(key string) bool
+	Clear(key string)
 }
 
-// Deduplicator tracks recently processed alerts by their GroupKey
+// Deduplicator tracks recently processed alerts by their dedup key
 // and suppresses duplicates within the configured cooldown period.
 // When a resolved alert is received, the entry is removed so the
 // next firing of the same alert triggers a new investigation.
@@ -39,9 +39,9 @@ func NewDeduplicator(cooldown time.Duration) *Deduplicator {
 }
 
 // ShouldProcess returns true if the alert should be investigated.
-// It records the current time for the given groupKey.
-func (d *Deduplicator) ShouldProcess(groupKey string) bool {
-	key := dedupKey(groupKey)
+// It records the current time for the given key.
+func (d *Deduplicator) ShouldProcess(key string) bool {
+	key = dedupKey(key)
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
@@ -54,10 +54,10 @@ func (d *Deduplicator) ShouldProcess(groupKey string) bool {
 	return true
 }
 
-// Clear removes the groupKey from the map, allowing the next
+// Clear removes the key from the map, allowing the next
 // occurrence to be processed immediately.
-func (d *Deduplicator) Clear(groupKey string) {
-	key := dedupKey(groupKey)
+func (d *Deduplicator) Clear(key string) {
+	key = dedupKey(key)
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	delete(d.seen, key)

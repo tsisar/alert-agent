@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/tsisar/alert-agent/internal/model"
 	"github.com/tsisar/alert-agent/internal/scenario"
 	"github.com/tsisar/alert-agent/internal/storage"
 )
@@ -356,5 +357,59 @@ func TestHandleWebhook_GrafanaTestdataFixture(t *testing.T) {
 
 	if rec.Code != http.StatusAccepted {
 		t.Fatalf("expected status 202, got %d; body: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func postAlerts(t *testing.T, h *Handler, groupKey string, alerts ...string) string {
+	t.Helper()
+	body := `{"receiver":"test","status":"firing","alerts":[` + strings.Join(alerts, ",") +
+		`],"groupLabels":{},"commonLabels":{"alertname":"HighCPU"},"commonAnnotations":{},"version":"1","groupKey":"` + groupKey + `"}`
+	rec := httptest.NewRecorder()
+	h.HandleWebhook(rec, httptest.NewRequest(http.MethodPost, "/webhook", strings.NewReader(body)))
+	if rec.Code != http.StatusAccepted {
+		t.Fatalf("expected status 202, got %d", rec.Code)
+	}
+	var resp map[string]string
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	return resp["status"]
+}
+
+func alertJSON(status, fingerprint string) string {
+	return `{"status":"` + status + `","labels":{"alertname":"HighCPU","fp":"` + fingerprint + `"},"fingerprint":"` + fingerprint + `"}`
+}
+
+func TestHandleWebhook_DedupPerAlert(t *testing.T) {
+	h := newTestHandler()
+
+	if got := postAlerts(t, h, "g1", alertJSON("firing", "aaa")); got != "accepted" {
+		t.Fatalf("first alert: expected accepted, got %q", got)
+	}
+	if got := postAlerts(t, h, "g1", alertJSON("firing", "aaa")); got != "suppressed" {
+		t.Fatalf("repeat alert: expected suppressed, got %q", got)
+	}
+	// A new alert joining the same group must not be hidden by the group cooldown.
+	if got := postAlerts(t, h, "g1", alertJSON("firing", "aaa"), alertJSON("firing", "bbb")); got != "accepted" {
+		t.Fatalf("new alert in group: expected accepted, got %q", got)
+	}
+	if got := postAlerts(t, h, "g1", alertJSON("firing", "aaa"), alertJSON("firing", "bbb")); got != "suppressed" {
+		t.Fatalf("repeat group: expected suppressed, got %q", got)
+	}
+	// Resolving one alert frees its slot, so its next firing is investigated again.
+	postAlerts(t, h, "g1", alertJSON("resolved", "aaa"), alertJSON("firing", "bbb"))
+	if got := postAlerts(t, h, "g1", alertJSON("firing", "aaa"), alertJSON("firing", "bbb")); got != "accepted" {
+		t.Fatalf("refired alert: expected accepted, got %q", got)
+	}
+}
+
+func TestAlertDedupKey_FallbackToLabels(t *testing.T) {
+	a := model.Alert{Labels: map[string]string{"b": "2", "a": "1"}}
+	if got, want := alertDedupKey("g", a), "g|a=1,b=2,"; got != want {
+		t.Fatalf("expected %q, got %q", want, got)
+	}
+	a.Fingerprint = "fp"
+	if got := alertDedupKey("g", a); got != "g|fp" {
+		t.Fatalf("expected fingerprint key, got %q", got)
 	}
 }

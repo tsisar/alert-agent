@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/tsisar/alert-agent/internal/agent"
@@ -71,9 +73,15 @@ func (h *Handler) HandleWebhook(w http.ResponseWriter, r *http.Request) {
 
 	log.Infof("matched scenario: %s (priority=%s, timeout=%s)", sc.Name, sc.Priority, sc.Timeout.Duration)
 
-	// On resolved status, clear the dedup entry and send a short notification.
+	// Resolved alerts free their dedup slot so the next firing is investigated again.
+	for _, a := range payload.Alerts {
+		if a.Status == "resolved" {
+			h.dedup.Clear(alertDedupKey(payload.GroupKey, a))
+		}
+	}
+
+	// On resolved status, send a short notification.
 	if payload.Status == "resolved" {
-		h.dedup.Clear(payload.GroupKey)
 		log.Infof("alert resolved, dedup cleared: groupKey=%s", payload.GroupKey)
 		if h.queue != nil {
 			h.queue.Enqueue(job{payload: &payload, scenario: sc, prompt: h.agent.ResolvedPrompt()})
@@ -96,14 +104,21 @@ func (h *Handler) HandleWebhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Deduplicate firing alerts within the cooldown period.
-	if !h.dedup.ShouldProcess(payload.GroupKey) {
+	// Deduplicate each firing alert separately within the cooldown period, so a
+	// new alert joining an already-reported group is still investigated.
+	fresh := h.freshAlerts(&payload)
+	if len(fresh) == 0 {
 		log.Infof("alert suppressed (cooldown): groupKey=%s", payload.GroupKey)
 		w.Header().Set(contentType, "application/json")
 		w.WriteHeader(http.StatusAccepted)
 		_ = json.NewEncoder(w).Encode(map[string]string{"status": "suppressed", "scenario": sc.Name})
 		return
 	}
+
+	if n := len(payload.Alerts); len(fresh) < n {
+		log.Infof("investigating %d new of %d alerts (rest in cooldown): groupKey=%s", len(fresh), n, payload.GroupKey)
+	}
+	payload.Alerts = fresh
 
 	if h.queue != nil {
 		h.queue.Enqueue(job{payload: &payload, scenario: sc})
@@ -112,6 +127,39 @@ func (h *Handler) HandleWebhook(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set(contentType, "application/json")
 	w.WriteHeader(http.StatusAccepted)
 	_ = json.NewEncoder(w).Encode(map[string]string{"status": "accepted", "scenario": sc.Name})
+}
+
+// freshAlerts returns the firing alerts not seen within the cooldown period.
+func (h *Handler) freshAlerts(payload *model.WebhookPayload) []model.Alert {
+	var fresh []model.Alert
+	for _, a := range payload.Alerts {
+		if a.Status == "resolved" {
+			continue
+		}
+		if h.dedup.ShouldProcess(alertDedupKey(payload.GroupKey, a)) {
+			fresh = append(fresh, a)
+		}
+	}
+	return fresh
+}
+
+// alertDedupKey identifies a single alert within its notification group.
+// Falls back to the sorted label set when the sender omits the fingerprint.
+func alertDedupKey(groupKey string, a model.Alert) string {
+	id := a.Fingerprint
+	if id == "" {
+		keys := make([]string, 0, len(a.Labels))
+		for k := range a.Labels {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		var b strings.Builder
+		for _, k := range keys {
+			fmt.Fprintf(&b, "%s=%s,", k, a.Labels[k])
+		}
+		id = b.String()
+	}
+	return groupKey + "|" + id
 }
 
 // channelTarget maps a notifier key to the destination extracted from the scenario.

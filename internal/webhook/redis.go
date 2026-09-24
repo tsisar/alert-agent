@@ -37,8 +37,8 @@ func NewRedisDedup(client *redis.Client, cooldown time.Duration) *RedisDedup {
 	return &RedisDedup{client: client, cooldown: cooldown}
 }
 
-func (d *RedisDedup) ShouldProcess(groupKey string) bool {
-	ok, err := d.client.SetArgs(context.Background(), redisKeyDedup+dedupKey(groupKey), "1", redis.SetArgs{
+func (d *RedisDedup) ShouldProcess(key string) bool {
+	ok, err := d.client.SetArgs(context.Background(), redisKeyDedup+dedupKey(key), "1", redis.SetArgs{
 		TTL:  d.cooldown,
 		Mode: "NX",
 	}).Result()
@@ -49,8 +49,8 @@ func (d *RedisDedup) ShouldProcess(groupKey string) bool {
 	return ok == "OK"
 }
 
-func (d *RedisDedup) Clear(groupKey string) {
-	if err := d.client.Del(context.Background(), redisKeyDedup+dedupKey(groupKey)).Err(); err != nil {
+func (d *RedisDedup) Clear(key string) {
+	if err := d.client.Del(context.Background(), redisKeyDedup+dedupKey(key)).Err(); err != nil {
 		log.Errorf("[redis-dedup] DEL error: %v", err)
 	}
 }
