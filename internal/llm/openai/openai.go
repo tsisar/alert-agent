@@ -110,7 +110,8 @@ func convertMessages(systemPrompt string, messages []llm.Message) ([]openai.Chat
 	var out []openai.ChatCompletionMessageParamUnion
 
 	if systemPrompt != "" {
-		out = append(out, openai.DeveloperMessage(systemPrompt))
+		// "system" rather than "developer": OpenAI-compatible servers (vLLM etc.) may reject the developer role.
+		out = append(out, openai.SystemMessage(systemPrompt))
 	}
 
 	for _, msg := range messages {

@@ -357,6 +357,45 @@ func TestConvertMessages(t *testing.T) {
 	}
 }
 
+// The system prompt must be sent with the "system" role: vLLM-based servers reject "developer".
+func TestChatCompletion_SystemPromptRole(t *testing.T) {
+	var roles []string
+	ts := newFakeOpenAIServer(t, func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Messages []struct {
+				Role string `json:"role"`
+			} `json:"messages"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Errorf("decode request: %v", err)
+		}
+		for _, m := range body.Messages {
+			roles = append(roles, m.Role)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(fakeCompletionResponse{
+			ID:      "chatcmpl-test",
+			Object:  "chat.completion",
+			Choices: []fakeChoice{{Message: fakeMessage{Role: "assistant", Content: "ok"}, FinishReason: "stop"}},
+		})
+	})
+
+	provider := New("test-key", ts.URL, "gpt-4o", "")
+	_, err := provider.ChatCompletion(context.Background(), &llm.ChatRequest{
+		SystemPrompt: "You are an alert investigator.",
+		Messages:     []llm.Message{{Role: llm.RoleUser, Content: "CPU alert fired on web-1"}},
+		MaxTokens:    16,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(roles) != 2 || roles[0] != "system" || roles[1] != "user" {
+		t.Fatalf("expected roles [system user], got %v", roles)
+	}
+}
+
 func TestConvertMessages_UnknownRole(t *testing.T) {
 	messages := []llm.Message{
 		{Role: "alien", Content: "beep"},
